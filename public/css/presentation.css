@@ -1,0 +1,344 @@
+/* ============================================================
+   ChaosLab — Presentation deck styling
+   ============================================================ */
+
+.deck-body {
+  overflow: hidden;
+}
+
+.deck {
+  height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.deck-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 26px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(9, 12, 18, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.deck-topbar .brand {
+  font-size: 15px;
+}
+
+.deck-topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.deck-progress-text {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  color: var(--text-faint);
+}
+
+.deck-viewport {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 50px 8vw 90px;
+  opacity: 0;
+  transform: translateX(28px);
+  pointer-events: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+  overflow-y: auto;
+}
+
+.slide.active {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+.slide.exit-left {
+  transform: translateX(-28px);
+}
+
+.slide-kicker {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 16px;
+}
+
+.slide h1.slide-title {
+  font-family: var(--mono);
+  font-size: clamp(2rem, 5vw, 3.4rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin-bottom: 18px;
+  max-width: 900px;
+}
+
+.slide h2.slide-title {
+  font-size: clamp(1.5rem, 3.4vw, 2.2rem);
+  font-weight: 650;
+  margin-bottom: 26px;
+  max-width: 900px;
+}
+
+.slide .slide-sub {
+  color: var(--text-dim);
+  font-size: 1.05rem;
+  max-width: 680px;
+  margin-bottom: 8px;
+}
+
+.slide-content {
+  max-width: 980px;
+  width: 100%;
+}
+
+.slide-content.narrow {
+  max-width: 760px;
+}
+
+.slide ul.slide-list li {
+  color: var(--text-dim);
+  padding-left: 26px;
+  position: relative;
+  margin-bottom: 13px;
+  font-size: 1rem;
+}
+
+.slide ul.slide-list li::before {
+  content: "▸";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+  font-family: var(--mono);
+}
+
+.slide ul.slide-list li strong {
+  color: var(--text);
+}
+
+.slide-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 34px;
+}
+
+@media (max-width: 800px) {
+  .slide-grid-2 { grid-template-columns: 1fr; }
+  .slide { padding: 40px 6vw 100px; }
+}
+
+.slide-box {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+}
+
+.slide-box h4 {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+
+/* title slide */
+
+.slide-title-hero {
+  text-align: left;
+}
+
+.slide-title-hero .team-name {
+  font-family: var(--mono);
+  color: var(--text-faint);
+  margin-top: 30px;
+  font-size: 13px;
+}
+
+/* gantt */
+
+.gantt {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+}
+
+.gantt th {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  padding: 6px 8px;
+  text-align: center;
+  border-bottom: 1px solid var(--border-strong);
+}
+
+.gantt td {
+  padding: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.gantt td.task-name {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.gantt-cell {
+  position: relative;
+  height: 22px;
+}
+
+.gantt-bar {
+  position: absolute;
+  top: 3px;
+  bottom: 3px;
+  border-radius: 4px;
+  background: var(--accent);
+  opacity: 0.85;
+}
+
+.gantt-bar.alt {
+  background: var(--accent-2);
+}
+
+/* stack pills */
+
+.pill-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.pill {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+  background: var(--bg-alt);
+}
+
+/* nav controls */
+
+.deck-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 26px;
+  border-top: 1px solid var(--border);
+  background: rgba(9, 12, 18, 0.85);
+  backdrop-filter: blur(10px);
+  z-index: 20;
+}
+
+.deck-controls-center {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 60vw;
+}
+
+.deck-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.deck-dot.active {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+.progress-bar-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--border);
+  z-index: 21;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+/* overview grid (accessible from deck) */
+
+.overview-grid {
+  display: none;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+  padding: 24px 6vw 90px;
+  overflow-y: auto;
+  position: fixed;
+  top: 69px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--bg);
+  z-index: 15;
+  align-content: start;
+}
+
+.overview-grid.open {
+  display: grid;
+}
+
+.overview-card {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: var(--radius-sm);
+  padding: 16px 18px;
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+}
+
+.overview-card:hover {
+  border-color: var(--accent);
+}
+
+.overview-card .num {
+  font-family: var(--mono);
+  color: var(--accent);
+  font-size: 12px;
+  margin-bottom: 8px;
+}
+
+.overview-card .t {
+  font-size: 14px;
+  font-weight: 600;
+}

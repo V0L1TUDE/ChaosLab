@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ChaosLab — Declarative Recovery-Correctness Analysis for Distributed Microservices</title>
+<meta name="description" content="ChaosLab verifies whether distributed applications recover to a correct business state after controlled failures." />
+<link rel="stylesheet" href="/ChaosLab/css/style.css" />
+</head>
+<body>
+
+<!-- ============ NAVBAR ============ -->
+<nav class="navbar">
+  <div class="container">
+    <a href="/ChaosLab/" class="brand">
+      <span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span>
+    </a>
+    <div class="nav-links">
+      <a href="/ChaosLab/" class="active">Home</a>
+      <a href="/ChaosLab/project/">Project</a>
+      <a href="/ChaosLab/architecture/">Architecture</a>
+      <a href="/ChaosLab/presentations/">Presentations</a>
+      <a href="#team">Team</a>
+    </div>
+    <div class="nav-right">
+      <a href="/ChaosLab/admin/login/" class="btn btn-ghost btn-sm admin-link-desktop">Admin&nbsp;/&nbsp;Login</a>
+      <button class="nav-toggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <a href="/ChaosLab/">Home</a>
+  <a href="/ChaosLab/project/">Project</a>
+  <a href="/ChaosLab/architecture/">Architecture</a>
+  <a href="/ChaosLab/presentations/">Presentations</a>
+  <a href="#team">Team</a>
+  <a href="/ChaosLab/admin/login/">Admin / Login</a>
+</div>
+
+<!-- ============ HERO ============ -->
+<header class="hero">
+  <div class="container">
+    <div class="eyebrow-badge">
+      <span class="dot"></span> Software Engineering Project · TIET · 2026
+    </div>
+    <h1 style="margin-top:22px;">CHAOSLAB</h1>
+    <p class="subtitle">
+      Declarative <span class="accent">Recovery-Correctness</span> Analysis<br />
+      for Distributed Microservices
+    </p>
+    <p class="desc">
+      ChaosLab verifies whether distributed applications recover to a
+      <code>correct business state</code> after controlled failures —
+      not just whether the services come back <em>up</em>.
+    </p>
+    <div class="hero-actions">
+      <a href="/ChaosLab/project/" class="btn btn-primary">Explore Project</a>
+      <a href="/ChaosLab/presentations/planning-v1/" class="btn btn-ghost">Planning Presentation v1</a>
+    </div>
+
+    <div class="pipeline reveal">
+      <div class="pipeline-node">
+        <div class="box">🧩</div>
+        <div class="label">Microservices</div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node">
+        <div class="box">⚡</div>
+        <div class="label">Failure</div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node">
+        <div class="box">♻️</div>
+        <div class="label">Recovery</div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node">
+        <div class="box">🔎</div>
+        <div class="label">Evidence</div>
+      </div>
+      <div class="pipeline-arrow"></div>
+      <div class="pipeline-node verdict">
+        <div class="box">✔</div>
+        <div class="label">PASS / FAIL</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ============ THE PROBLEM ============ -->
+<section id="problem">
+  <div class="container">
+    <div class="section-label">01 · The Problem</div>
+    <div class="two-col">
+      <div class="section-head" style="margin-bottom:0;">
+        <h2>"Healthy" isn't the same as "correct."</h2>
+        <p>
+          After a chaos experiment, a distributed system can report every
+          service as up, every health check green, and every pod running —
+          while the underlying business state is quietly wrong. Liveness
+          checks don't catch this. ChaosLab does.
+        </p>
+      </div>
+      <div class="terminal reveal">
+        <div class="terminal-bar">
+          <span></span><span></span><span></span>
+          <span class="title">post-recovery-state.log</span>
+        </div>
+        <div class="terminal-body">
+          <div class="l-dim">$ kubectl get pods --namespace=boutique</div>
+          <div class="l-ok">✔ all 11 services Running</div>
+          <div class="l-ok">✔ readiness probes: 11/11 passing</div>
+          <div class="l-dim">$ chaoslab verify --experiment checkout-partition-01</div>
+          <div class="l-fail">✘ duplicate payment charge detected (order #48213)</div>
+          <div class="l-fail">✘ inventory not decremented after confirmed order</div>
+          <div class="l-warn">⚠ order state = "CONFIRMED", payment state = "REFUND_PENDING"</div>
+          <div class="l-accent">VERDICT: RECOVERY_INCORRECT</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid grid-3" style="margin-top:44px;">
+      <div class="card reveal">
+        <div class="icon">×2</div>
+        <h3>Duplicate Payment</h3>
+        <p>A retried request after a network partition charges the customer twice, even though every service reports success.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">∅</div>
+        <h3>Missing Inventory Deduction</h3>
+        <p>An order is confirmed, but a crash during recovery leaves stock levels untouched — silently overselling later.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">≠</div>
+        <h3>Incorrect Order State</h3>
+        <p>The order service and payment service disagree about what happened, and nothing surfaces the contradiction.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ OUR APPROACH ============ -->
+<section id="approach" style="background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">02 · Our Approach</div>
+    <div class="section-head">
+      <h2>Inject failure. Let it recover. Prove the outcome.</h2>
+      <p>ChaosLab sits between a chaos-engineering tool and the application under test, correlating what actually happened against a declarative definition of what <em>should</em> have happened.</p>
+    </div>
+
+    <div class="arch-diagram reveal">
+      <div class="arch-node-row"><div class="arch-node">Chaos Mesh <small>injects controlled failure</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Distributed Application <small>e.g. Online Boutique</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Recovery <small>system self-heals / restarts</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node center">ChaosLab <small>observes &amp; analyzes</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Evidence Correlation <small>logs, DB state, traces</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Declarative Oracle <small>expected business invariants</small></div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node verdict">Recovery Correctness Verdict <small>PASS / FAIL + evidence</small></div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ KEY FEATURES ============ -->
+<section id="features">
+  <div class="container">
+    <div class="section-label">03 · Key Features</div>
+    <div class="section-head">
+      <h2>What ChaosLab actually does</h2>
+      <p>Fault injection is supporting infrastructure. These are the parts that make recovery <em>correctness</em> verifiable.</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="card reveal">
+        <div class="icon">§</div>
+        <h3>Declarative Recovery Oracles</h3>
+        <p>Business-level invariants — "an order's payment and inventory state must always agree" — expressed declaratively, not hard-coded per test.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⋈</div>
+        <h3>Evidence Correlation</h3>
+        <p>Logs, database snapshots, and OpenTelemetry traces are correlated across services to reconstruct exactly what happened during recovery.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">✓</div>
+        <h3>Business Invariant Verification</h3>
+        <p>Checks outcomes against real business rules, not just HTTP status codes or pod readiness.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⚡</div>
+        <h3>Controlled Fault Experiments</h3>
+        <p>Reproducible failure scenarios — network partitions, pod kills, latency injection — driven through Chaos Mesh.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⚑</div>
+        <h3>Ground-Truth Mutation Testing</h3>
+        <p>Deliberately broken recovery paths validate that ChaosLab's oracles actually detect incorrect state, not just healthy ones.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">▤</div>
+        <h3>Recovery Correctness Reports</h3>
+        <p>A structured PASS/FAIL verdict backed by the evidence trail that produced it — auditable, not a black box.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ ARCHITECTURE PREVIEW ============ -->
+<section id="architecture-preview" style="background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label">04 · Project Architecture</div>
+    <div class="section-head">
+      <h2>How the pieces fit together</h2>
+      <p>A birds-eye view of the ChaosLab system. See the full breakdown on the <a href="/ChaosLab/architecture/" style="color:var(--accent); text-decoration:underline;">Architecture page</a>.</p>
+    </div>
+
+    <div class="arch-diagram reveal">
+      <div class="arch-node-row"><div class="arch-node">User</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">ChaosLab API</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Experiment Manager</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Oracle Engine</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Evidence Collector</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node">Correlation Engine</div></div>
+      <div class="arch-connector"></div>
+      <div class="arch-node-row"><div class="arch-node verdict">Verdict Generator</div></div>
+
+      <div class="arch-external">
+        <div class="arch-tier-label">External Systems</div>
+        <div class="arch-external-row">
+          <span class="ext-chip">Chaos Mesh</span>
+          <span class="ext-chip">Online Boutique</span>
+          <span class="ext-chip">Database</span>
+          <span class="ext-chip">Logs</span>
+          <span class="ext-chip">OpenTelemetry</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ TEAM ============ -->
+<section id="team">
+  <div class="container">
+    <div class="section-label">05 · Team</div>
+    <div class="section-head">
+      <h2>Who's building this</h2>
+    </div>
+    <div class="grid grid-3">
+      <div class="card team-card reveal">
+        <div class="avatar">AS</div>
+        <h3>Arjan Singh Sawhney</h3>
+        <div class="role">1024170074</div>
+      </div>
+      <div class="card team-card reveal">
+        <div class="avatar">HG</div>
+        <h3>Himanshi Gupta</h3>
+        <div class="role">1024170079</div>
+      </div>
+      <div class="card team-card reveal">
+        <div class="avatar">HM</div>
+        <h3>Harsith Mahay</h3>
+        <div class="role">1024170075</div>
+      </div>
+      <div class="card team-card reveal">
+        <div class="avatar">PS</div>
+        <h3>Parth Singh</h3>
+        <div class="role">1024170086</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROJECT STATUS ============ -->
+<section id="status" style="background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
+  <div class="container">
+    <div class="section-label" style="justify-content:center; display:flex;">06 · Project Status</div>
+    <div class="stepper reveal">
+      <div class="step done"><span class="node"></span> Planning</div>
+      <div class="step-line done"></div>
+      <div class="step active"><span class="node"></span> In Progress</div>
+      <div class="step-line"></div>
+      <div class="step"><span class="node"></span> Evaluation</div>
+    </div>
+    <p class="status-note">
+      The recovery-correctness engine (Oracle Engine, Evidence Collector, Correlation
+      Engine, Verdict Generator) is <strong>under active development</strong> and not
+      yet implemented. This website currently reflects the approved project plan and
+      design — not a working analysis engine.
+    </p>
+  </div>
+</section>
+
+<!-- ============ FOOTER ============ -->
+<footer>
+  <div class="container">
+    <div class="footer-brand">[ChaosLab]</div>
+    <div class="footer-meta">
+      Software Engineering Project · TIET · 2026
+    </div>
+  </div>
+</footer>
+
+<script src="/ChaosLab/js/main.js"></script>
+</body>
+</html>

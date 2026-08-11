@@ -1,0 +1,10 @@
+{
+  "name": "chaoslab-website",
+  "version": "0.1.0",
+  "description": "ChaosLab project website — Declarative Recovery-Correctness Analysis for Distributed Microservices",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  }
+}

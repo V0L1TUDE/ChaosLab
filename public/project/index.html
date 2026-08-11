@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project — ChaosLab</title>
+<meta name="description" content="Problem statement, objectives, scope, and proposed functions for ChaosLab." />
+<link rel="stylesheet" href="/ChaosLab/css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="/ChaosLab/" class="brand"><span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span></a>
+    <div class="nav-links">
+      <a href="/ChaosLab/">Home</a>
+      <a href="/ChaosLab/project/" class="active">Project</a>
+      <a href="/ChaosLab/architecture/">Architecture</a>
+      <a href="/ChaosLab/presentations/">Presentations</a>
+      <a href="/ChaosLab/#team">Team</a>
+    </div>
+    <div class="nav-right">
+      <a href="/ChaosLab/admin/login/" class="btn btn-ghost btn-sm admin-link-desktop">Admin&nbsp;/&nbsp;Login</a>
+      <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <a href="/ChaosLab/">Home</a>
+  <a href="/ChaosLab/project/">Project</a>
+  <a href="/ChaosLab/architecture/">Architecture</a>
+  <a href="/ChaosLab/presentations/">Presentations</a>
+  <a href="/ChaosLab/#team">Team</a>
+  <a href="/ChaosLab/admin/login/">Admin / Login</a>
+</div>
+
+<header class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/ChaosLab/">Home</a> / Project</div>
+    <h1>Project Overview</h1>
+    <p>The approved scope, direction, and design of ChaosLab — a declarative recovery-correctness analysis platform for distributed microservices.</p>
+  </div>
+</header>
+
+<div class="container">
+
+  <div class="content-block">
+    <h2><span class="num">01</span> Problem Statement</h2>
+    <p>
+      Modern distributed applications are built to survive failure: pods restart,
+      requests retry, circuit breakers trip and reset. Chaos-engineering tools like
+      Chaos Mesh are excellent at injecting that failure and confirming a system
+      becomes <em>live</em> again — services respond, health checks pass, pods run.
+    </p>
+    <p>
+      What they do not check is whether the system's <strong>business state</strong>
+      is still <em>correct</em> after that recovery. A payment can be double-charged.
+      An order can be confirmed without inventory ever being deducted. Two services
+      can each report success while disagreeing about what actually happened. None
+      of this shows up in a liveness probe.
+    </p>
+    <div class="callout">
+      <p><strong>ChaosLab's problem, precisely stated:</strong> given a distributed
+      application, a controlled failure, and its subsequent recovery, was the
+      resulting business state correct — and can that be proven with evidence,
+      not assumed from green health checks?</p>
+    </div>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">02</span> Objectives</h2>
+    <ul class="check-list">
+      <li>Design a declarative language/format for expressing recovery-correctness oracles (business invariants) independent of any single application.</li>
+      <li>Build an Experiment Manager that drives controlled fault injection via Chaos Mesh against a target distributed application.</li>
+      <li>Build an Evidence Collector that gathers logs, database state, and OpenTelemetry traces after each experiment.</li>
+      <li>Build a Correlation Engine that reconstructs a coherent timeline of what happened across services from that evidence.</li>
+      <li>Build a Verdict Generator that evaluates collected evidence against declarative oracles and produces a PASS/FAIL recovery-correctness verdict.</li>
+      <li>Validate the engine using ground-truth mutation testing — deliberately broken recovery paths that oracles must catch.</li>
+    </ul>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">03</span> Scope</h2>
+    <div class="two-col">
+      <div>
+        <h3 style="font-size:1rem; margin-bottom:10px; color:var(--accent-2);">In Scope</h3>
+        <ul class="check-list">
+          <li>Recovery-correctness verification for a target distributed application (Online Boutique)</li>
+          <li>Declarative oracle definitions for business invariants</li>
+          <li>Evidence correlation across logs, DB state, and traces</li>
+          <li>Chaos Mesh–driven controlled fault experiments</li>
+          <li>A project website with presentations, documentation, and (later) an admin publishing workflow</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="font-size:1rem; margin-bottom:10px; color:var(--danger);">Out of Scope</h3>
+        <ul class="bullet-list">
+          <li>Building a new chaos-engineering tool (Chaos Mesh is used as-is)</li>
+          <li>General-purpose APM or observability tooling</li>
+          <li>Automatic remediation or self-healing of detected failures</li>
+          <li>Supporting arbitrary applications without an oracle definition</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">04</span> Intended Users</h2>
+    <div class="grid grid-3">
+      <div class="card"><h3>Platform / SRE Teams</h3><p>Teams that already run chaos experiments and need to know if recovery preserved correct business state, not just uptime.</p></div>
+      <div class="card"><h3>Backend Engineers</h3><p>Engineers who own services with cross-service invariants (payments, inventory, order state) and want regression coverage for recovery paths.</p></div>
+      <div class="card"><h3>QA / Release Engineers</h3><p>Teams validating a release candidate under failure conditions before it reaches production.</p></div>
+    </div>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">05</span> Proposed Functions</h2>
+    <table class="spec-table">
+      <thead><tr><th>Function</th><th>Description</th></tr></thead>
+      <tbody>
+        <tr><td>Define Oracle</td><td>Author a declarative recovery-correctness oracle describing expected business invariants.</td></tr>
+        <tr><td>Run Experiment</td><td>Trigger a controlled fault (via Chaos Mesh) against the target application through the Experiment Manager.</td></tr>
+        <tr><td>Collect Evidence</td><td>Gather logs, database snapshots, and OpenTelemetry traces during and after recovery.</td></tr>
+        <tr><td>Correlate Evidence</td><td>Merge evidence into a single cross-service timeline of what actually happened.</td></tr>
+        <tr><td>Evaluate Oracle</td><td>Check the correlated evidence against the declarative oracle.</td></tr>
+        <tr><td>Generate Verdict</td><td>Produce a PASS/FAIL recovery-correctness report backed by the supporting evidence.</td></tr>
+        <tr><td>Publish Artifacts</td><td>(Website) Publish presentations and project documentation with version history.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">06</span> Key Features</h2>
+    <ul class="check-list">
+      <li>Declarative recovery oracles, reusable across experiments</li>
+      <li>Automatic evidence correlation across heterogeneous sources</li>
+      <li>Business-invariant verification, not just service-liveness checks</li>
+      <li>Reproducible, controlled fault experiments</li>
+      <li>Ground-truth mutation testing to validate oracle sensitivity</li>
+      <li>Auditable recovery-correctness reports</li>
+    </ul>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">07</span> External Interfaces</h2>
+    <table class="spec-table">
+      <thead><tr><th>System</th><th>Interface</th></tr></thead>
+      <tbody>
+        <tr><td>Chaos Mesh</td><td>Kubernetes CRDs / API to schedule and trigger fault experiments.</td></tr>
+        <tr><td>Online Boutique</td><td>Target distributed application under test (microservices demo app).</td></tr>
+        <tr><td>Database</td><td>Direct queries to verify persisted business state after recovery.</td></tr>
+        <tr><td>Logs</td><td>Structured application/service logs collected post-experiment.</td></tr>
+        <tr><td>OpenTelemetry</td><td>Distributed traces used to reconstruct cross-service request flow.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="content-block">
+    <h2><span class="num">08</span> Technical Challenges</h2>
+    <ul class="bullet-list">
+      <li>Designing an oracle language expressive enough for real business invariants, but simple enough to author declaratively.</li>
+      <li>Correlating asynchronous, distributed evidence (logs, traces, DB state) into one consistent timeline despite clock skew and delivery ordering.</li>
+      <li>Distinguishing "recovery still in progress" from "recovery finished incorrectly" without flaky false positives.</li>
+      <li>Building mutation scenarios that are genuinely representative of real recovery bugs, to trust the oracle's PASS verdicts.</li>
+      <li>Keeping experiments reproducible against a live Kubernetes cluster running Chaos Mesh.</li>
+    </ul>
+
+    <div class="callout warn">
+      <p><strong>Important framing:</strong> fault injection (via Chaos Mesh) is
+      <em>supporting infrastructure</em> — it produces the failure scenario.
+      ChaosLab's actual contribution, per our professor's guidance, is
+      <strong>verifying recovery correctness</strong> after that failure:
+      the oracle definition, evidence correlation, and verdict generation.
+      ChaosLab should not be described as merely a fault-injection platform.</p>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  <div class="container">
+    <div class="footer-brand">[ChaosLab]</div>
+    <div class="footer-meta">Software Engineering Project · TIET · 2026</div>
+  </div>
+</footer>
+
+<script src="/ChaosLab/js/main.js"></script>
+</body>
+</html>

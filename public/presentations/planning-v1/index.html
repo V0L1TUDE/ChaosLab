@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Planning Presentation v1 — ChaosLab</title>
+<meta name="description" content="ChaosLab Planning Presentation v1 — a website-based slide deck, structured to the UCS503 course template." />
+<link rel="stylesheet" href="/ChaosLab/css/style.css" />
+<link rel="stylesheet" href="/ChaosLab/css/presentation.css" />
+</head>
+<body class="deck-body">
+
+<div class="deck">
+  <div class="progress-bar-track"><div class="progress-bar-fill"></div></div>
+
+  <div class="deck-topbar">
+    <a href="/ChaosLab/" class="brand"><span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span></a>
+    <div class="deck-topbar-right">
+      <span class="deck-progress-text mono">01 / 14</span>
+      <a href="/ChaosLab/presentations/" class="btn btn-ghost btn-sm">Exit Deck</a>
+    </div>
+  </div>
+
+  <div class="deck-viewport">
+    <div class="overview-grid"></div>
+
+    <!-- 1. TITLE -->
+    <section class="slide slide-title-hero">
+      <div class="slide-kicker">UCS503 · Software Engineering</div>
+      <h1 class="slide-title">ChaosLab</h1>
+      <p class="slide-sub">Declarative Recovery-Correctness Analysis for Distributed Microservices</p>
+      <p class="slide-sub" style="font-size:0.95rem;">Planning Presentation v1</p>
+      <div class="team-name">
+        TEAM: ChaosLab<br />
+        Arjan Singh Sawhney (1024170074) · Himanshi Gupta (1024170079)<br />
+        Harsith Mahay (1024170075) · Parth Singh (1024170086)<br />
+        TIET · 2026
+      </div>
+    </section>
+
+    <!-- 2. TABLE OF CONTENTS -->
+    <section class="slide">
+      <div class="slide-kicker">02</div>
+      <h2 class="slide-title">Table of Contents</h2>
+      <div class="slide-content">
+        <div class="slide-grid-2">
+          <ul class="slide-list" style="font-family:var(--mono); font-size:0.92rem;">
+            <li>03 — Introduction</li>
+            <li>04 — Project Scope</li>
+            <li>05 — Proposed Functions</li>
+            <li>06 — Target Users</li>
+            <li>07 — System Features</li>
+            <li>08 — Interfaces</li>
+            <li>09 — Performance Goals</li>
+          </ul>
+          <ul class="slide-list" style="font-family:var(--mono); font-size:0.92rem;">
+            <li>10 — Security Measures</li>
+            <li>11 — Quality Attributes</li>
+            <li>12 — Initial Planning</li>
+            <li>13 — Conclusion</li>
+            <li>14 — References</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. INTRODUCTION -->
+    <section class="slide">
+      <div class="slide-kicker">03 · Introduction</div>
+      <h2 class="slide-title">Introduction</h2>
+      <div class="slide-content narrow">
+        <div class="slide-box" style="margin-bottom:16px;">
+          <h4>Overview</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">ChaosLab is a declarative recovery-correctness analysis platform for distributed microservices. It injects controlled failure into a running application and verifies whether the system's <em>business state</em> — not just its liveness — is correct after recovery.</p>
+        </div>
+        <div class="slide-box" style="margin-bottom:16px;">
+          <h4>Importance</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">Distributed systems are engineered to survive failure, but "recovered" and "correct" are not the same thing. Duplicate payments, missed inventory deductions, and contradictory service state can all occur silently behind green health checks.</p>
+        </div>
+        <div class="slide-box">
+          <h4>Presentation Objectives</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">This deck covers our approved project scope, proposed functions, architecture, non-functional requirements, and initial planning for the semester.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PROJECT SCOPE -->
+    <section class="slide">
+      <div class="slide-kicker">04 · Project Scope</div>
+      <h2 class="slide-title">Project Scope</h2>
+      <div class="slide-grid-2">
+        <div class="slide-box">
+          <h4>Project Aims</h4>
+          <ul class="slide-list">
+            <li>Verify <strong>recovery correctness</strong>, not just recovery liveness</li>
+            <li>Express business invariants declaratively via oracles</li>
+            <li>Validate oracle sensitivity with ground-truth mutation testing</li>
+          </ul>
+        </div>
+        <div class="slide-box">
+          <h4>Deliverables &amp; Functionality</h4>
+          <ul class="slide-list">
+            <li><strong>In scope:</strong> recovery-correctness verification for Online Boutique</li>
+            <li><strong>In scope:</strong> oracle definitions, evidence correlation, PASS/FAIL verdicts</li>
+            <li><strong>Out of scope:</strong> building a new chaos tool or auto-remediation</li>
+          </ul>
+        </div>
+      </div>
+      <div class="slide-content" style="margin-top:20px;">
+        <div class="callout" style="max-width:none;">
+          <p><strong>Note:</strong> fault injection (Chaos Mesh) is supporting infrastructure. ChaosLab's actual contribution is verifying <em>recovery correctness</em> after that failure.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. PROPOSED FUNCTIONS -->
+    <section class="slide">
+      <div class="slide-kicker">05 · Proposed Functions</div>
+      <h2 class="slide-title">Proposed Functions</h2>
+      <div class="slide-content">
+        <table class="spec-table">
+          <thead><tr><th>Function</th><th>Description</th></tr></thead>
+          <tbody>
+            <tr><td>Define Oracle</td><td>Author a declarative recovery-correctness oracle for a business invariant.</td></tr>
+            <tr><td>Run Experiment</td><td>Trigger a controlled fault via Chaos Mesh through the Experiment Manager.</td></tr>
+            <tr><td>Collect Evidence</td><td>Gather logs, DB snapshots, and OpenTelemetry traces after recovery.</td></tr>
+            <tr><td>Correlate Evidence</td><td>Merge evidence into one cross-service timeline of what happened.</td></tr>
+            <tr><td>Evaluate Oracle</td><td>Check correlated evidence against the declarative oracle.</td></tr>
+            <tr><td>Generate Verdict</td><td>Produce an auditable PASS/FAIL recovery-correctness report.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 6. TARGET USERS -->
+    <section class="slide">
+      <div class="slide-kicker">06 · Target Users</div>
+      <h2 class="slide-title">Target Users</h2>
+      <div class="slide-content">
+        <div class="grid grid-3">
+          <div class="card">
+            <div class="icon">◎</div>
+            <h3>Platform / SRE Teams</h3>
+            <p>Already run chaos experiments; need to know if recovery preserved correct business state, not just uptime.</p>
+          </div>
+          <div class="card">
+            <div class="icon">⚙</div>
+            <h3>Backend Engineers</h3>
+            <p>Own services with cross-service invariants — payments, inventory, order state — and want recovery-path regression coverage.</p>
+          </div>
+          <div class="card">
+            <div class="icon">✓</div>
+            <h3>QA / Release Engineers</h3>
+            <p>Validate a release candidate under failure conditions before it reaches production.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. SYSTEM FEATURES -->
+    <section class="slide">
+      <div class="slide-kicker">07 · System Features</div>
+      <h2 class="slide-title">System Features</h2>
+      <div class="slide-grid-2">
+        <div class="slide-box">
+          <h4>Feature List</h4>
+          <ul class="slide-list">
+            <li>Declarative recovery oracles</li>
+            <li>Automatic evidence correlation</li>
+            <li>Business invariant verification</li>
+            <li>Controlled, reproducible fault experiments</li>
+            <li>Ground-truth mutation testing</li>
+            <li>Auditable correctness reports</li>
+          </ul>
+        </div>
+        <div class="arch-diagram" style="padding:20px 18px;">
+          <div class="arch-tier-label" style="margin-bottom:10px;">Feature Interaction</div>
+          <div class="arch-node-row"><div class="arch-node" style="min-width:110px; font-size:11.5px; padding:8px 12px;">Experiment Manager</div></div>
+          <div class="arch-connector" style="height:14px;"></div>
+          <div class="arch-node-row"><div class="arch-node" style="min-width:110px; font-size:11.5px; padding:8px 12px;">Evidence Collector</div></div>
+          <div class="arch-connector" style="height:14px;"></div>
+          <div class="arch-node-row"><div class="arch-node" style="min-width:110px; font-size:11.5px; padding:8px 12px;">Correlation Engine</div></div>
+          <div class="arch-connector" style="height:14px;"></div>
+          <div class="arch-node-row"><div class="arch-node" style="min-width:110px; font-size:11.5px; padding:8px 12px;">Oracle Engine</div></div>
+          <div class="arch-connector" style="height:14px;"></div>
+          <div class="arch-node-row"><div class="arch-node verdict" style="min-width:110px; font-size:11.5px; padding:8px 12px;">Verdict Generator</div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 8. INTERFACES -->
+    <section class="slide">
+      <div class="slide-kicker">08 · Interfaces</div>
+      <h2 class="slide-title">Interfaces</h2>
+      <div class="slide-content">
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>User Interface</h3>
+            <p>The ChaosLab website: project pages, presentation archive, and an admin dashboard for publishing (UI built, backend pending).</p>
+          </div>
+          <div class="card">
+            <h3>Hardware / Software</h3>
+            <p>Kubernetes cluster running Chaos Mesh; Online Boutique deployed as the target application under test.</p>
+          </div>
+          <div class="card">
+            <h3>Communication</h3>
+            <p>Database queries for persisted state, log ingestion, and OpenTelemetry traces for cross-service request flow.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 9. PERFORMANCE GOALS -->
+    <section class="slide">
+      <div class="slide-kicker">09 · Performance Goals</div>
+      <h2 class="slide-title">Performance Goals</h2>
+      <div class="slide-content narrow">
+        <ul class="slide-list">
+          <li><strong>Requirements:</strong> bounded evidence-collection window after recovery stabilizes; verdict generation without manual intervention</li>
+          <li><strong>Importance:</strong> slow analysis undermines usefulness as a pre-release gate</li>
+          <li><strong>Strategy:</strong> asynchronous evidence collection keyed by trace/experiment ID, oracle evaluation that scales to multiple invariants without a rewrite</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 10. SECURITY MEASURES -->
+    <section class="slide">
+      <div class="slide-kicker">10 · Security Measures</div>
+      <h2 class="slide-title">Security Measures</h2>
+      <div class="slide-grid-2">
+        <div class="slide-box">
+          <h4>Data Protection</h4>
+          <ul class="slide-list">
+            <li>No secrets or credentials committed to the repository</li>
+            <li>Uploaded presentation files validated before storage (Phase 6+)</li>
+          </ul>
+        </div>
+        <div class="slide-box">
+          <h4>Access Control</h4>
+          <ul class="slide-list">
+            <li>Admin publishing gated behind authentication (Phase 5)</li>
+            <li>Least-privilege access to the Kubernetes cluster running Chaos Mesh</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 11. QUALITY ATTRIBUTES -->
+    <section class="slide">
+      <div class="slide-kicker">11 · Quality Attributes</div>
+      <h2 class="slide-title">Quality Attributes</h2>
+      <div class="slide-content">
+        <div class="grid grid-3">
+          <div class="card">
+            <h3>Reliability</h3>
+            <p>Experiments are reproducible under the same fault configuration; verdict generation is deterministic given the same evidence.</p>
+          </div>
+          <div class="card">
+            <h3>Usability</h3>
+            <p>Oracles are readable without deep ChaosLab internals knowledge; verdicts clearly explain why a result was PASS or FAIL.</p>
+          </div>
+          <div class="card">
+            <h3>Maintainability</h3>
+            <p>Oracle Engine, Evidence Collector, and Experiment Manager stay independent, testable modules with a versioned oracle schema.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 12. INITIAL PLANNING -->
+    <section class="slide">
+      <div class="slide-kicker">12 · Initial Planning</div>
+      <h2 class="slide-title">Initial Planning</h2>
+      <div class="slide-content">
+        <table class="gantt">
+          <thead><tr><th style="text-align:left; padding-left:8px;">Task</th><th colspan="12">Semester Timeline (12 weeks)</th></tr></thead>
+          <tbody>
+            <tr><td class="task-name">Planning &amp; Feasibility</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar" style="left:0%;width:16.6%;"></div></div></td></tr>
+            <tr><td class="task-name">Oracle Engine Design</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar alt" style="left:8.3%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Experiment Manager</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar" style="left:16.6%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Evidence Collector</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar alt" style="left:25%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Correlation Engine</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar" style="left:41.6%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Verdict Engine</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar alt" style="left:50%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Mutation Testing</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar" style="left:66.6%;width:25%;"></div></div></td></tr>
+            <tr><td class="task-name">Integration &amp; Demo</td><td colspan="12"><div class="gantt-cell"><div class="gantt-bar alt" style="left:83.3%;width:16.6%;"></div></div></td></tr>
+          </tbody>
+        </table>
+        <div class="slide-grid-2" style="margin-top:22px;">
+          <div class="slide-box">
+            <h4>Feasibility</h4>
+            <p class="slide-sub" style="font-size:0.9rem; margin-bottom:0;">Online Boutique, Chaos Mesh, and OpenTelemetry are all open-source and self-hostable on a single Kubernetes cluster — validated as technically feasible within the semester timeline.</p>
+          </div>
+          <div class="slide-box">
+            <h4>Milestones</h4>
+            <ul class="slide-list" style="margin-bottom:0;">
+              <li>Oracle language + Experiment Manager prototype</li>
+              <li>Evidence Collector + Correlation Engine integration</li>
+              <li>Verdict Engine + mutation-tested validation</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 13. CONCLUSION -->
+    <section class="slide">
+      <div class="slide-kicker">13 · Conclusion</div>
+      <h2 class="slide-title">Conclusion</h2>
+      <div class="slide-content narrow">
+        <div class="slide-box" style="margin-bottom:16px;">
+          <h4>Summary</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">ChaosLab verifies recovery <em>correctness</em>, not just recovery liveness, for distributed microservices — using declarative oracles, evidence correlation, and mutation-tested verdicts.</p>
+        </div>
+        <div class="slide-box" style="margin-bottom:16px;">
+          <h4>Next Steps</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">Begin Oracle Engine design and Experiment Manager integration with Chaos Mesh, per the timeline in Initial Planning.</p>
+        </div>
+        <div class="slide-box">
+          <h4>Feedback</h4>
+          <p class="slide-sub" style="font-size:0.95rem; margin-bottom:0;">We welcome questions and feedback on the proposed scope and architecture.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 14. REFERENCES -->
+    <section class="slide">
+      <div class="slide-kicker">14 · References</div>
+      <h2 class="slide-title">References</h2>
+      <div class="slide-content narrow">
+        <ul class="slide-list mono" style="font-size:0.92rem;">
+          <li>Chaos Mesh — chaos-mesh.org</li>
+          <li>Online Boutique (microservices-demo) — GitHub, Google</li>
+          <li>OpenTelemetry — opentelemetry.io</li>
+          <li>UCS503 Software Engineering course materials, TIET</li>
+        </ul>
+      </div>
+    </section>
+
+  </div>
+
+  <div class="deck-controls">
+    <button class="btn btn-ghost btn-sm" data-action="prev">← Prev</button>
+    <div class="deck-controls-center"></div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn btn-ghost btn-sm" data-action="overview">Overview</button>
+      <button class="btn btn-ghost btn-sm" data-action="fullscreen">Fullscreen</button>
+      <button class="btn btn-primary btn-sm" data-action="next">Next →</button>
+    </div>
+  </div>
+</div>
+
+<script src="/ChaosLab/js/presentation.js"></script>
+</body>
+</html>

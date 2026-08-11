@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Admin Dashboard — ChaosLab</title>
+<link rel="stylesheet" href="/ChaosLab/css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="/ChaosLab/" class="brand"><span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span></a>
+    <div class="nav-links">
+      <a href="/ChaosLab/">Public Site ↗</a>
+    </div>
+    <div class="nav-right">
+      <a href="/ChaosLab/admin/login/" class="btn btn-ghost btn-sm">Log out</a>
+      <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <a href="/ChaosLab/">Public Site</a>
+  <a href="/ChaosLab/admin/login/">Log out</a>
+</div>
+
+<div class="admin-shell">
+  <aside class="admin-sidebar">
+    <nav>
+      <a href="/ChaosLab/admin/dashboard/" class="active">▤ Dashboard</a>
+      <a href="/ChaosLab/presentations/">▦ Presentations</a>
+      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">◎ Team (soon)</a>
+      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">⚙ Settings (soon)</a>
+    </nav>
+  </aside>
+
+  <main class="admin-main">
+    <div class="mock-banner">
+      ⚠ UI PREVIEW — this dashboard is not connected to a backend, database, or object storage yet. Nothing you do here is saved.
+    </div>
+
+    <div class="dashboard-header">
+      <div>
+        <h1>Admin Dashboard</h1>
+        <p>Publish and manage presentations, documents, and project files.</p>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Upload Presentation</h2>
+      <form id="publish-form">
+        <div class="dropzone" id="dropzone">
+          <div class="dz-icon">⇧</div>
+          <div>Drag &amp; drop files or a folder, or click to browse</div>
+          <div style="margin-top:6px; color:var(--text-faint);">Accepts slides, PDFs, images, and supporting files</div>
+        </div>
+        <input type="file" id="file-input" multiple style="display:none;" />
+        <div class="file-list" id="file-list"></div>
+
+        <div class="form-grid" style="margin-top:26px;">
+          <div class="field">
+            <label for="p-title">Title</label>
+            <input type="text" id="p-title" placeholder="e.g. Planning Presentation v2" />
+          </div>
+          <div class="field">
+            <label for="p-version">Version</label>
+            <input type="text" id="p-version" placeholder="e.g. v2" />
+          </div>
+          <div class="field">
+            <label for="p-date">Date</label>
+            <input type="date" id="p-date" />
+          </div>
+          <div class="field">
+            <label for="p-authors">Authors</label>
+            <input type="text" id="p-authors" placeholder="e.g. ChaosLab Team" />
+          </div>
+          <div class="field full">
+            <label for="p-summary">Change Summary</label>
+            <textarea id="p-summary" rows="3" placeholder="What changed since the last version?"></textarea>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="margin-top:8px;">Publish</button>
+        <div id="publish-msg" class="form-msg mono"></div>
+      </form>
+    </div>
+
+    <div class="panel">
+      <h2>Version History</h2>
+      <p style="color:var(--text-faint); font-size:12.5px; font-family:var(--mono); margin-bottom:16px; margin-top:-10px;">
+        Static content shown below — read from the current website, not a database (no backend yet).
+      </p>
+      <div class="table-wrap">
+        <table class="version-table">
+          <thead>
+            <tr><th>Title</th><th>Version</th><th>Date</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Planning Presentation</td>
+              <td>v1</td>
+              <td>2026-08-10</td>
+              <td><span class="badge badge-published">Published</span></td>
+              <td class="row-actions">
+                <a href="/ChaosLab/presentations/planning-v1/">View</a>
+                <a href="#" class="disabled">Replace</a>
+              </td>
+            </tr>
+            <tr>
+              <td>Planning Presentation</td>
+              <td>v2</td>
+              <td>—</td>
+              <td><span class="badge badge-planned">Not published</span></td>
+              <td class="row-actions">
+                <a href="#" class="disabled">View</a>
+                <a href="#" class="disabled">Replace</a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/ChaosLab/js/main.js"></script>
+<script src="/ChaosLab/js/admin.js"></script>
+</body>
+</html>

@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Architecture — ChaosLab</title>
+<meta name="description" content="System architecture of ChaosLab: Oracle Engine, Evidence Collector, Experiment Manager, Correlation Engine, and Verdict Engine." />
+<link rel="stylesheet" href="/ChaosLab/css/style.css" />
+</head>
+<body>
+
+<nav class="navbar">
+  <div class="container">
+    <a href="/ChaosLab/" class="brand"><span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span></a>
+    <div class="nav-links">
+      <a href="/ChaosLab/">Home</a>
+      <a href="/ChaosLab/project/">Project</a>
+      <a href="/ChaosLab/architecture/" class="active">Architecture</a>
+      <a href="/ChaosLab/presentations/">Presentations</a>
+      <a href="/ChaosLab/#team">Team</a>
+    </div>
+    <div class="nav-right">
+      <a href="/ChaosLab/admin/login/" class="btn btn-ghost btn-sm admin-link-desktop">Admin&nbsp;/&nbsp;Login</a>
+      <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
+    </div>
+  </div>
+</nav>
+<div class="mobile-menu">
+  <a href="/ChaosLab/">Home</a>
+  <a href="/ChaosLab/project/">Project</a>
+  <a href="/ChaosLab/architecture/">Architecture</a>
+  <a href="/ChaosLab/presentations/">Presentations</a>
+  <a href="/ChaosLab/#team">Team</a>
+  <a href="/ChaosLab/admin/login/">Admin / Login</a>
+</div>
+
+<header class="page-header">
+  <div class="container">
+    <div class="breadcrumb"><a href="/ChaosLab/">Home</a> / Architecture</div>
+    <h1>System Architecture</h1>
+    <p>How ChaosLab's components divide the work of turning a controlled failure into a provable recovery-correctness verdict.</p>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+    <div class="tree-diagram reveal">
+      <div class="tree-node root">CHAOSLAB</div>
+      <div class="tree-stem"></div>
+      <div class="tree-hbar-wrap"><div class="tree-hbar"></div></div>
+
+      <div class="tree-row-3">
+        <div class="tree-branch">
+          <div class="tree-stem"></div>
+          <div class="tree-node">Oracle Engine<small>Declarative invariants</small></div>
+        </div>
+        <div class="tree-branch">
+          <div class="tree-stem"></div>
+          <div class="tree-node">Evidence Collector<small>Logs, DB, traces</small></div>
+        </div>
+        <div class="tree-branch">
+          <div class="tree-stem"></div>
+          <div class="tree-node">Experiment Manager<small>Drives Chaos Mesh</small></div>
+        </div>
+      </div>
+
+      <div class="tree-hbar-wrap" style="margin-top:0;"><div class="tree-hbar"></div></div>
+      <div class="tree-stem"></div>
+      <div class="tree-node merge">Correlation Engine</div>
+      <div class="tree-stem"></div>
+      <div class="tree-node merge">Verdict Engine</div>
+      <div class="tree-stem"></div>
+      <div class="tree-row-2 verdict-row">
+        <div class="tree-node pass">PASS</div>
+        <div class="tree-node fail">FAIL</div>
+      </div>
+    </div>
+
+    <div class="arch-external reveal" style="max-width:640px; margin:70px auto 0;">
+      <div class="arch-tier-label">External Systems</div>
+      <div class="arch-external-row">
+        <span class="ext-chip">Chaos Mesh</span>
+        <span class="ext-chip">Online Boutique</span>
+        <span class="ext-chip">Database</span>
+        <span class="ext-chip">Logs</span>
+        <span class="ext-chip">OpenTelemetry</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="tree-explain" style="padding-top:0;">
+  <div class="container">
+    <div class="section-label">Component Breakdown</div>
+    <div class="grid grid-3">
+      <div class="card reveal">
+        <div class="icon">§</div>
+        <h3>Oracle Engine</h3>
+        <p>Parses and evaluates declarative recovery-correctness oracles — the business invariants a system must satisfy after recovering from failure.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⛁</div>
+        <h3>Evidence Collector</h3>
+        <p>Gathers raw evidence after an experiment: service logs, database snapshots, and OpenTelemetry traces from the affected services.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⚡</div>
+        <h3>Experiment Manager</h3>
+        <p>Drives Chaos Mesh to schedule and execute controlled fault experiments against the target application, and tracks experiment lifecycle.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⋈</div>
+        <h3>Correlation Engine</h3>
+        <p>Merges evidence from all three upstream components into a single, time-ordered account of what happened across every service.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">✔</div>
+        <h3>Verdict Engine</h3>
+        <p>Evaluates the correlated evidence against the Oracle Engine's invariants and emits a PASS/FAIL recovery-correctness verdict with supporting evidence.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⇄</div>
+        <h3>ChaosLab API</h3>
+        <p>The entry point users and the future dashboard talk to — triggers experiments, and exposes verdicts and evidence for review.</p>
+      </div>
+    </div>
+
+    <div class="section-head" style="margin-top:70px;">
+      <h2>External systems</h2>
+      <p>ChaosLab doesn't reimplement any of these — it orchestrates and reads from them.</p>
+    </div>
+    <table class="spec-table">
+      <thead><tr><th>System</th><th>Role</th></tr></thead>
+      <tbody>
+        <tr><td>Chaos Mesh</td><td>Executes the controlled fault (pod kill, network partition, latency injection) inside the Kubernetes cluster.</td></tr>
+        <tr><td>Online Boutique</td><td>The target distributed microservices application under test.</td></tr>
+        <tr><td>Database</td><td>Source of ground-truth persisted business state, queried post-recovery.</td></tr>
+        <tr><td>Logs</td><td>Per-service structured logs collected as raw evidence.</td></tr>
+        <tr><td>OpenTelemetry</td><td>Distributed tracing used to reconstruct the cross-service request path during recovery.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <div class="footer-brand">[ChaosLab]</div>
+    <div class="footer-meta">Software Engineering Project · TIET · 2026</div>
+  </div>
+</footer>
+
+<script src="/ChaosLab/js/main.js"></script>
+</body>
+</html>
