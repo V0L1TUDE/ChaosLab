@@ -1,4 +1,4 @@
-// ChaosLab — Express backend (Phase 3)
+// ChaosLab — Express backend (Phase 3 + 4)
 //
 // This replaces the old zero-dependency static server. It still serves
 // the public/ website exactly as before (same /ChaosLab base path, same
@@ -6,13 +6,14 @@
 // the admin dashboard calls over the network with fetch() — instead of
 // the dashboard's JavaScript just faking messages locally.
 //
-// No database yet (Phase 4) and no real authentication yet (Phase 5), so
-// endpoints that depend on those honestly reply "not implemented" rather
-// than pretending to succeed.
+// /api/presentations now reads from a real SQLite database (db/database.js)
+// instead of an in-memory array, and publishing actually inserts a row.
+// No real authentication yet (Phase 5) and no real file storage yet
+// (Phases 6/7), so those parts still honestly reply "not implemented".
 
 const express = require("express");
 const path = require("path");
-const { presentations } = require("./data/presentations");
+const { listPresentations, createPresentation } = require("./db/database");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -42,9 +43,9 @@ api.get("/health", (req, res) => {
   res.json({ status: "ok", backend: "express", time: new Date().toISOString() });
 });
 
-// Real endpoint, real data — just not a database yet.
+// Real endpoint, backed by a real SQLite database now.
 api.get("/presentations", (req, res) => {
-  res.json({ presentations });
+  res.json({ presentations: listPresentations() });
 });
 
 api.post("/auth/login", (req, res) => {
@@ -54,11 +55,23 @@ api.post("/auth/login", (req, res) => {
   });
 });
 
+// This genuinely writes a row to chaoslab.db — it's just honest that no
+// actual file bytes are stored anywhere yet (that's Phases 6/7), so the
+// new row has no page behind it and is marked "draft", not "published".
 api.post("/presentations/publish", (req, res) => {
-  res.status(501).json({
-    implemented: false,
+  const { title, version, date, authors, summary } = req.body || {};
+
+  if (!title || !version) {
+    res.status(400).json({ implemented: true, message: "Title and version are required." });
+    return;
+  }
+
+  const created = createPresentation({ title, version, date, authors, summary });
+  res.status(201).json({
+    implemented: true,
     message:
-      "Publishing is not implemented yet — it needs a database (Phase 4) and file storage (Phase 6/7). Nothing was saved.",
+      "Metadata saved to the database. No actual file was stored — file/object storage isn't implemented yet (Phase 6/7) — so this entry has no page to view.",
+    presentation: created,
   });
 });
 

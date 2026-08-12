@@ -1,11 +1,18 @@
-// ChaosLab — admin UI behavior (Phase 3: talks to the real Express API)
+// ChaosLab — admin UI behavior (Phase 3 + 4: talks to the real API + database)
 //
 // Every action below calls a real /api/* endpoint with fetch() and shows
-// the server's real response. Some of those endpoints still honestly
-// reply "not implemented yet" (login, publish) because auth and storage
-// don't exist yet — see server.js for what's real vs. stubbed.
+// the server's real response. Login still honestly replies "not
+// implemented yet" (no auth system exists — Phase 5). Publishing now
+// really writes a row to the SQLite database, but honestly says so when
+// no actual file was stored (file/object storage is Phases 6/7).
 
 const API_BASE = "/api";
+
+const STATUS_BADGE = {
+  published: { class: "badge-published", label: "Published" },
+  draft: { class: "badge-draft", label: "Draft (metadata only)" },
+  not_published: { class: "badge-planned", label: "Not published" },
+};
 
 document.addEventListener("DOMContentLoaded", () => {
   // ---- login form ----
@@ -38,7 +45,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
   const fileList = document.getElementById("file-list");
-  const selected = [];
+  let selected = [];
 
   function renderFiles() {
     if (!fileList) return;
@@ -79,6 +86,39 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ---- version history (real data, from chaoslab.db via the API) ----
+  const historyBody = document.getElementById("version-history-body");
+
+  function loadVersionHistory() {
+    if (!historyBody) return;
+    fetch(`${API_BASE}/presentations`)
+      .then((res) => res.json())
+      .then(({ presentations }) => {
+        historyBody.innerHTML = "";
+        presentations.forEach((p) => {
+          const badge = STATUS_BADGE[p.status] || STATUS_BADGE.not_published;
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${p.title}</td>
+            <td>${p.version}</td>
+            <td>${p.date || "—"}</td>
+            <td><span class="badge ${badge.class}">${badge.label}</span></td>
+            <td class="row-actions">
+              ${p.url ? `<a href="${p.url}">View</a>` : `<a href="#" class="disabled">View</a>`}
+              <a href="#" class="disabled">Replace</a>
+            </td>
+          `;
+          historyBody.appendChild(row);
+        });
+      })
+      .catch(() => {
+        historyBody.innerHTML =
+          '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not reach /api/presentations — is server.js running?</td></tr>';
+      });
+  }
+
+  loadVersionHistory();
+
   // ---- publish form ----
   const publishForm = document.getElementById("publish-form");
   if (publishForm) {
@@ -105,44 +145,16 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const data = await res.json();
         msg.textContent = `[${res.status}] ${data.message}`;
+
+        if (res.ok) {
+          publishForm.reset();
+          selected = [];
+          renderFiles();
+          loadVersionHistory();
+        }
       } catch (err) {
         msg.textContent = "Could not reach the backend — is server.js running?";
       }
     });
-  }
-
-  // ---- version history (real data, from data/presentations.js via the API) ----
-  const historyBody = document.getElementById("version-history-body");
-  if (historyBody) {
-    fetch(`${API_BASE}/presentations`)
-      .then((res) => res.json())
-      .then(({ presentations }) => {
-        historyBody.innerHTML = "";
-        presentations.forEach((p) => {
-          const isPublished = p.status === "published";
-          const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${p.title}</td>
-            <td>${p.version}</td>
-            <td>${p.date || "—"}</td>
-            <td><span class="badge ${isPublished ? "badge-published" : "badge-planned"}">${
-            isPublished ? "Published" : "Not published"
-          }</span></td>
-            <td class="row-actions">
-              ${
-                isPublished
-                  ? `<a href="${p.url}">View</a>`
-                  : `<a href="#" class="disabled">View</a>`
-              }
-              <a href="#" class="disabled">Replace</a>
-            </td>
-          `;
-          historyBody.appendChild(row);
-        });
-      })
-      .catch(() => {
-        historyBody.innerHTML =
-          '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not reach /api/presentations — is server.js running?</td></tr>';
-      });
   }
 });

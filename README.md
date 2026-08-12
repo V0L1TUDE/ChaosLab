@@ -27,9 +27,9 @@ Then open **http://localhost:3000** — it redirects to `http://localhost:3000/C
 | API endpoint | What it does |
 |---|---|
 | `GET /api/health` | Simple server health check |
-| `GET /api/presentations` | Real data — reads `data/presentations.js` (in-memory, not a database yet) |
+| `GET /api/presentations` | Real data from a real SQLite database (`chaoslab.db`) |
 | `POST /api/auth/login` | Honestly replies 501 — no auth system yet (Phase 5) |
-| `POST /api/presentations/publish` | Honestly replies 501 — no database/storage yet (Phases 4 & 7) |
+| `POST /api/presentations/publish` | Really inserts a row into the database (status `draft`) — honestly notes that no actual file was stored (Phases 6 & 7) |
 
 ## Project structure
 
@@ -37,8 +37,9 @@ Then open **http://localhost:3000** — it redirects to `http://localhost:3000/C
 ChaosLab/
 ├── server.js               Express app: serves public/ + the /api/* routes
 ├── package.json
-├── data/
-│   └── presentations.js    In-memory stand-in for a database (Phase 4 replaces this)
+├── db/
+│   └── database.js         SQLite schema, seed data, and query functions (node:sqlite — built into Node)
+├── chaoslab.db              The actual database file (gitignored — generated, not source code)
 ├── .github/workflows/
 │   └── deploy-pages.yml    Publishes public/ to GitHub Pages on push to main
 └── public/
@@ -89,7 +90,8 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
 - ✅ Public website (Phase 1) — done, deployed to GitHub Pages
 - ✅ Planning Presentation v1 content (Phase 2) — done
 - ✅ Node.js/Express backend (Phase 3) — done, runs locally (`node server.js`)
-- ⬜ Database (Phase 4) — `data/presentations.js` is a placeholder in-memory array
+- ✅ Database (Phase 4) — real SQLite (`chaoslab.db`, via `node:sqlite`, no extra dependency).
+  Publishing writes a real `draft` row; only file storage (Phases 6/7) is still missing
 - ⬜ Authentication (Phase 5)
 - ⬜ Real file/folder upload (Phase 6)
 - ⬜ Object storage (Phase 7)
@@ -98,6 +100,8 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
   Express; the backend needs separate hosting once it does more than stub responses
 
 The admin login/dashboard screens now make **real** `fetch()` calls to the
-Express API. Nothing is faked client-side anymore — but the server itself is
-still honest that login and publishing aren't implemented (HTTP 501 with an
-explanation), because there's no database or auth system behind them yet.
+Express API. Nothing is faked client-side anymore. Publishing genuinely
+writes to `chaoslab.db` and the version-history table reflects it immediately
+— but new rows are marked "draft" because no actual file is stored yet.
+Login still honestly replies "not implemented" (HTTP 501), because there's
+no auth system behind it yet.

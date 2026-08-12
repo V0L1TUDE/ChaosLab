@@ -37,7 +37,7 @@
 
   <main class="admin-main">
     <div class="mock-banner">
-      ⚠ Connected to the live ChaosLab API below — but there's still no database or object storage (Phases 4 &amp; 7), so nothing you publish here is actually saved yet.
+      ⚠ Publishing now saves real metadata to a real database — but there's still no file/object storage (Phases 6 &amp; 7), so uploaded files themselves aren't saved, and there's no login gate yet (Phase 5).
     </div>
 
     <div class="dashboard-header">
@@ -89,7 +89,7 @@
     <div class="panel">
       <h2>Version History</h2>
       <p style="color:var(--text-faint); font-size:12.5px; font-family:var(--mono); margin-bottom:16px; margin-top:-10px;">
-        Live from <code>GET /api/presentations</code> — real API call, but still an in-memory list on the server, not a database yet (Phase 4).
+        Live from <code>GET /api/presentations</code> — backed by a real SQLite database (<code>chaoslab.db</code>). "Draft" rows below have real metadata but no file behind them yet.
       </p>
       <div class="table-wrap">
         <table class="version-table">
