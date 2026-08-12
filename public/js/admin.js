@@ -1,21 +1,36 @@
-// ChaosLab — admin UI behavior (Phase 1: frontend only)
+// ChaosLab — admin UI behavior (Phase 3: talks to the real Express API)
 //
-// Nothing in this file talks to a server. There is no backend yet.
-// It exists so the admin screens feel real to interact with while
-// being explicit that no login, upload, or publish actually happens.
-// When the Express backend + auth + storage land (Phases 3-6), the
-// fetch() calls replace these placeholder handlers directly.
+// Every action below calls a real /api/* endpoint with fetch() and shows
+// the server's real response. Some of those endpoints still honestly
+// reply "not implemented yet" (login, publish) because auth and storage
+// don't exist yet — see server.js for what's real vs. stubbed.
+
+const API_BASE = "/api";
 
 document.addEventListener("DOMContentLoaded", () => {
   // ---- login form ----
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
     const msg = document.getElementById("login-msg");
-    loginForm.addEventListener("submit", (e) => {
+    loginForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      msg.textContent =
-        "Authentication is not implemented yet. This screen is a UI preview only — no backend is connected.";
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      msg.textContent = "Contacting /api/auth/login…";
       msg.classList.add("show");
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
+        const data = await res.json();
+        msg.textContent = `[${res.status}] ${data.message}`;
+      } catch (err) {
+        msg.textContent = "Could not reach the backend — is server.js running?";
+      }
     });
   }
 
@@ -68,11 +83,66 @@ document.addEventListener("DOMContentLoaded", () => {
   const publishForm = document.getElementById("publish-form");
   if (publishForm) {
     const msg = document.getElementById("publish-msg");
-    publishForm.addEventListener("submit", (e) => {
+    publishForm.addEventListener("submit", async (e) => {
       e.preventDefault();
-      msg.textContent =
-        "Publishing is not implemented yet. No files or metadata were saved — this UI is not yet connected to a backend or database.";
+      const body = {
+        title: document.getElementById("p-title").value,
+        version: document.getElementById("p-version").value,
+        date: document.getElementById("p-date").value,
+        authors: document.getElementById("p-authors").value,
+        summary: document.getElementById("p-summary").value,
+        fileNames: selected,
+      };
+
+      msg.textContent = "Contacting /api/presentations/publish…";
       msg.classList.add("show");
+
+      try {
+        const res = await fetch(`${API_BASE}/presentations/publish`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        const data = await res.json();
+        msg.textContent = `[${res.status}] ${data.message}`;
+      } catch (err) {
+        msg.textContent = "Could not reach the backend — is server.js running?";
+      }
     });
+  }
+
+  // ---- version history (real data, from data/presentations.js via the API) ----
+  const historyBody = document.getElementById("version-history-body");
+  if (historyBody) {
+    fetch(`${API_BASE}/presentations`)
+      .then((res) => res.json())
+      .then(({ presentations }) => {
+        historyBody.innerHTML = "";
+        presentations.forEach((p) => {
+          const isPublished = p.status === "published";
+          const row = document.createElement("tr");
+          row.innerHTML = `
+            <td>${p.title}</td>
+            <td>${p.version}</td>
+            <td>${p.date || "—"}</td>
+            <td><span class="badge ${isPublished ? "badge-published" : "badge-planned"}">${
+            isPublished ? "Published" : "Not published"
+          }</span></td>
+            <td class="row-actions">
+              ${
+                isPublished
+                  ? `<a href="${p.url}">View</a>`
+                  : `<a href="#" class="disabled">View</a>`
+              }
+              <a href="#" class="disabled">Replace</a>
+            </td>
+          `;
+          historyBody.appendChild(row);
+        });
+      })
+      .catch(() => {
+        historyBody.innerHTML =
+          '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not reach /api/presentations — is server.js running?</td></tr>';
+      });
   }
 });
