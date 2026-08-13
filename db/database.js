@@ -1,4 +1,4 @@
-// ChaosLab — SQLite database (Phase 4 + 5)
+// ChaosLab — SQLite database (Phase 4 + 5 + 6)
 //
 // Uses node:sqlite, which ships built into Node.js itself — no npm
 // package to install, no native compilation to worry about. It's the
@@ -37,6 +37,17 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS files (
+    id               INTEGER PRIMARY KEY AUTOINCREMENT,
+    presentation_id  INTEGER NOT NULL REFERENCES presentations(id),
+    stored_name      TEXT NOT NULL, -- random name on disk (uploads/<presentation_id>/<stored_name>)
+    original_name    TEXT NOT NULL, -- what the uploader actually called it
+    size             INTEGER NOT NULL,
+    uploaded_at      TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 // Seed once, so a fresh chaoslab.db starts with the same two rows the
 // old hardcoded array had, instead of an empty table.
 const { count } = db.prepare("SELECT COUNT(*) AS count FROM presentations").get();
@@ -68,10 +79,10 @@ function listPresentations() {
   return db.prepare("SELECT * FROM presentations ORDER BY id").all();
 }
 
-// Saves real metadata to a real database row. It does NOT store any
-// actual files — that's file storage (Phase 6) and object storage
-// (Phase 7), neither of which exist yet — so every row created here
-// is a 'draft': real data, but no page/file behind it.
+// Saves real metadata to a real database row. Starts as 'draft' — becomes
+// 'published' only once a real file is actually attached (see
+// markPresentationPublished below), which happens right after this in
+// server.js if the request included any files.
 function createPresentation({ title, version, date, authors, summary }) {
   const result = db
     .prepare(
@@ -81,8 +92,39 @@ function createPresentation({ title, version, date, authors, summary }) {
   return db.prepare("SELECT * FROM presentations WHERE id = ?").get(result.lastInsertRowid);
 }
 
+// Called once per uploaded file, after its bytes are already written to
+// disk (see server.js) — this just records that the file exists.
+function addFile(presentationId, { storedName, originalName, size }) {
+  db.prepare(
+    "INSERT INTO files (presentation_id, stored_name, original_name, size) VALUES (?, ?, ?, ?)"
+  ).run(presentationId, storedName, originalName, size);
+}
+
+function getFilesForPresentation(presentationId) {
+  return db.prepare("SELECT * FROM files WHERE presentation_id = ? ORDER BY id").all(presentationId);
+}
+
+// Real file(s) now exist on disk for this presentation, so it's genuinely
+// publishable — flips status and points url at the download endpoint.
+function markPresentationPublished(presentationId, url) {
+  db.prepare("UPDATE presentations SET status = 'published', url = ? WHERE id = ?").run(url, presentationId);
+  return db.prepare("SELECT * FROM presentations WHERE id = ?").get(presentationId);
+}
+
+function getPresentationById(presentationId) {
+  return db.prepare("SELECT * FROM presentations WHERE id = ?").get(presentationId);
+}
+
 function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ?").get(username);
 }
 
-module.exports = { listPresentations, createPresentation, getUserByUsername };
+module.exports = {
+  listPresentations,
+  createPresentation,
+  getUserByUsername,
+  addFile,
+  getFilesForPresentation,
+  markPresentationPublished,
+  getPresentationById,
+};

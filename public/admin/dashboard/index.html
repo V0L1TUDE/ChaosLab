@@ -23,7 +23,7 @@
 </nav>
 <div class="mobile-menu">
   <a href="/ChaosLab/">Public Site</a>
-  <a href="/ChaosLab/admin/login/">Log out</a>
+  <a href="#" id="mobile-logout-btn">Log out</a>
 </div>
 
 <div class="admin-shell">
@@ -38,7 +38,7 @@
 
   <main class="admin-main">
     <div class="mock-banner">
-      ⚠ You're really logged in and publishing really saves to the database — but there's still no file/object storage (Phases 6 &amp; 7), so uploaded files themselves aren't saved yet.
+      ⚠ Uploads are real now — files you attach are genuinely saved to disk on the server. What's still missing: cloud/object storage (Phase 7, e.g. S3) instead of local disk, and version replacement (Phase 8).
     </div>
 
     <div class="dashboard-header">
@@ -54,7 +54,7 @@
         <div class="dropzone" id="dropzone">
           <div class="dz-icon">⇧</div>
           <div>Drag &amp; drop files or a folder, or click to browse</div>
-          <div style="margin-top:6px; color:var(--text-faint);">Accepts slides, PDFs, images, and supporting files</div>
+          <div style="margin-top:6px; color:var(--text-faint);">PDF, PPT/PPTX, DOC/DOCX, ZIP, or images — up to 25MB each, 10 files max</div>
         </div>
         <input type="file" id="file-input" multiple style="display:none;" />
         <div class="file-list" id="file-list"></div>
@@ -90,7 +90,7 @@
     <div class="panel">
       <h2>Version History</h2>
       <p style="color:var(--text-faint); font-size:12.5px; font-family:var(--mono); margin-bottom:16px; margin-top:-10px;">
-        Live from <code>GET /api/presentations</code> — backed by a real SQLite database (<code>chaoslab.db</code>). "Draft" rows below have real metadata but no file behind them yet.
+        Live from <code>GET /api/presentations</code> — backed by a real SQLite database. "Draft" rows have metadata but no file attached; "Published" rows have a real file on disk — click View to download it.
       </p>
       <div class="table-wrap">
         <table class="version-table">

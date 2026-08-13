@@ -36,7 +36,9 @@ falls back to `admin` / `admin` with a warning printed to the console.
 | `POST /api/auth/login` | Checks a salted+hashed password, sets a real session cookie |
 | `POST /api/auth/logout` | Destroys the session, clears the cookie |
 | `GET /api/auth/me` | Tells the frontend whether the current cookie is a valid session |
-| `POST /api/presentations/publish` | **Requires login.** Inserts a row into the database (status `draft`) — honestly notes that no actual file was stored (Phases 6 & 7) |
+| `POST /api/presentations/publish` | **Requires login.** Accepts real files (multipart/form-data, via multer) and writes them to `uploads/`. With a file → row becomes `published`. Without one → stays `draft` (metadata only) |
+| `GET /api/presentations/:id/files` | Lists the files attached to a presentation |
+| `GET /api/presentations/:id/download` | Streams the first attached file back, with its real filename and content type |
 
 ## Project structure
 
@@ -47,8 +49,9 @@ ChaosLab/
 ├── package.json
 ├── .env.example              Template for the one admin account's credentials
 ├── db/
-│   └── database.js         SQLite schema (presentations + users), seed data, query functions
+│   └── database.js         SQLite schema (presentations + users + files), seed data, query functions
 ├── chaoslab.db              The actual database file (gitignored — generated, not source code)
+├── uploads/                  Real uploaded files, one folder per presentation ID (gitignored)
 ├── .github/workflows/
 │   └── deploy-pages.yml    Publishes public/ to GitHub Pages on push to main
 └── public/
@@ -104,20 +107,37 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
 - ✅ Authentication (Phase 5) — real login: scrypt-hashed passwords, session
   cookies, `/api/presentations/publish` requires being logged in, the
   dashboard redirects you out if your session isn't valid
-- ⬜ Real file/folder upload (Phase 6)
-- ⬜ Object storage (Phase 7)
-- ⬜ Publishing/version control (Phase 8)
+- ✅ Real file/folder upload (Phase 6) — real files, written to local disk
+  (`uploads/`) via multer. A presentation becomes genuinely `published`
+  (with a working download link) once a file is attached; without one it
+  stays `draft`. 25MB/file limit, 10 files max, restricted to
+  pdf/ppt/pptx/doc/docx/zip/image types
+- ⬜ Object storage (Phase 7) — files currently live on local disk, not
+  S3/R2/etc. (see the README section on that decision below)
+- ⬜ Publishing/version control (Phase 8) — no "replace an existing version"
+  yet; every publish creates a new row
 - ⬜ Backend deployment (Phase 9) — GitHub Pages is static-only and can't run
   Express; the backend needs separate hosting once it does more than stub responses
 
 The admin login/dashboard screens now make **real** `fetch()` calls to the
-Express API, with real login behind them. Nothing is faked client-side
-anymore, and nothing about auth is faked server-side either — wrong
-passwords are rejected, sessions are real cookies checked against an
-in-memory session store, and publishing is genuinely gated behind being
-logged in. Publishing still only saves metadata (a `draft` row) because
-there's no file/object storage yet (Phases 6/7).
+Express API, with real login and real file uploads behind them. Nothing is
+faked client-side or server-side anymore for what's actually implemented:
+wrong passwords are rejected, sessions are real cookies, publishing is
+gated behind being logged in, and attached files are genuinely written to
+disk and downloadable afterward. The only remaining "honest gap" is that
+files live on local disk instead of cloud object storage, and there's no
+version-replace/rollback workflow yet.
 
 **Note on session storage:** sessions live in server memory (a `Map`), not
 the database — restarting the server logs everyone out. That's a normal,
 accepted tradeoff for a project this size; it's not a bug.
+
+**Note on local disk vs. cloud storage (Phase 6 vs. 7):** uploaded files
+are saved under `uploads/`, not to AWS S3 or similar. This was a deliberate
+choice — local disk needs zero setup or cloud account, and it's genuinely
+enough to make uploads/downloads fully functional for development. The
+tradeoff: if the backend is ever deployed to a host with an ephemeral
+filesystem, uploaded files would be lost on restart/redeploy. Phase 7 is
+specifically about swapping this for real object storage (Cloudflare R2 or
+Backblaze B2 recommended over AWS S3 for an easier free tier) once that
+becomes a real constraint.
