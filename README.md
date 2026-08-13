@@ -6,11 +6,16 @@ Declarative Recovery-Correctness Analysis for Distributed Microservices.
 
 ```bash
 npm install
+cp .env.example .env   # then edit .env with your own admin username/password
 node server.js
 ```
 
 Then open **http://localhost:3000** — it redirects to `http://localhost:3000/ChaosLab/`
 (see [Why the /ChaosLab prefix](#why-the-chaoslab-prefix) below).
+
+`.env` is gitignored and only read the *first* time the app starts with an
+empty database — it seeds the one admin account. If you skip this step, it
+falls back to `admin` / `admin` with a warning printed to the console.
 
 ## Routes
 
@@ -21,24 +26,28 @@ Then open **http://localhost:3000** — it redirects to `http://localhost:3000/C
 | `/ChaosLab/architecture/` | System architecture diagram + component breakdown |
 | `/ChaosLab/presentations/` | Presentation archive |
 | `/ChaosLab/presentations/planning-v1/` | Planning Presentation v1 (website-based slide deck) |
-| `/ChaosLab/admin/login/` | Admin login UI (calls the real API, honestly replies "not implemented") |
-| `/ChaosLab/admin/dashboard/` | Admin dashboard UI (same — real API calls, honest responses) |
+| `/ChaosLab/admin/login/` | Real login — wrong credentials rejected, correct ones redirect to the dashboard |
+| `/ChaosLab/admin/dashboard/` | Redirects you back to login if you're not actually logged in (checks `/api/auth/me`) |
 
 | API endpoint | What it does |
 |---|---|
 | `GET /api/health` | Simple server health check |
 | `GET /api/presentations` | Real data from a real SQLite database (`chaoslab.db`) |
-| `POST /api/auth/login` | Honestly replies 501 — no auth system yet (Phase 5) |
-| `POST /api/presentations/publish` | Really inserts a row into the database (status `draft`) — honestly notes that no actual file was stored (Phases 6 & 7) |
+| `POST /api/auth/login` | Checks a salted+hashed password, sets a real session cookie |
+| `POST /api/auth/logout` | Destroys the session, clears the cookie |
+| `GET /api/auth/me` | Tells the frontend whether the current cookie is a valid session |
+| `POST /api/presentations/publish` | **Requires login.** Inserts a row into the database (status `draft`) — honestly notes that no actual file was stored (Phases 6 & 7) |
 
 ## Project structure
 
 ```
 ChaosLab/
 ├── server.js               Express app: serves public/ + the /api/* routes
+├── auth.js                  Password hashing + sessions (node:crypto — built into Node)
 ├── package.json
+├── .env.example              Template for the one admin account's credentials
 ├── db/
-│   └── database.js         SQLite schema, seed data, and query functions (node:sqlite — built into Node)
+│   └── database.js         SQLite schema (presentations + users), seed data, query functions
 ├── chaoslab.db              The actual database file (gitignored — generated, not source code)
 ├── .github/workflows/
 │   └── deploy-pages.yml    Publishes public/ to GitHub Pages on push to main
@@ -92,7 +101,9 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
 - ✅ Node.js/Express backend (Phase 3) — done, runs locally (`node server.js`)
 - ✅ Database (Phase 4) — real SQLite (`chaoslab.db`, via `node:sqlite`, no extra dependency).
   Publishing writes a real `draft` row; only file storage (Phases 6/7) is still missing
-- ⬜ Authentication (Phase 5)
+- ✅ Authentication (Phase 5) — real login: scrypt-hashed passwords, session
+  cookies, `/api/presentations/publish` requires being logged in, the
+  dashboard redirects you out if your session isn't valid
 - ⬜ Real file/folder upload (Phase 6)
 - ⬜ Object storage (Phase 7)
 - ⬜ Publishing/version control (Phase 8)
@@ -100,8 +111,13 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
   Express; the backend needs separate hosting once it does more than stub responses
 
 The admin login/dashboard screens now make **real** `fetch()` calls to the
-Express API. Nothing is faked client-side anymore. Publishing genuinely
-writes to `chaoslab.db` and the version-history table reflects it immediately
-— but new rows are marked "draft" because no actual file is stored yet.
-Login still honestly replies "not implemented" (HTTP 501), because there's
-no auth system behind it yet.
+Express API, with real login behind them. Nothing is faked client-side
+anymore, and nothing about auth is faked server-side either — wrong
+passwords are rejected, sessions are real cookies checked against an
+in-memory session store, and publishing is genuinely gated behind being
+logged in. Publishing still only saves metadata (a `draft` row) because
+there's no file/object storage yet (Phases 6/7).
+
+**Note on session storage:** sessions live in server memory (a `Map`), not
+the database — restarting the server logs everyone out. That's a normal,
+accepted tradeoff for a project this size; it's not a bug.

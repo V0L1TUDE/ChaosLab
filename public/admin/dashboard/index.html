@@ -15,7 +15,8 @@
       <a href="/ChaosLab/">Public Site ↗</a>
     </div>
     <div class="nav-right">
-      <a href="/ChaosLab/admin/login/" class="btn btn-ghost btn-sm">Log out</a>
+      <span id="whoami" class="mono" style="font-size:12px; color:var(--text-faint);"></span>
+      <button id="logout-btn" class="btn btn-ghost btn-sm">Log out</button>
       <button class="nav-toggle" aria-label="Toggle menu"><span></span><span></span><span></span></button>
     </div>
   </div>
@@ -37,7 +38,7 @@
 
   <main class="admin-main">
     <div class="mock-banner">
-      ⚠ Publishing now saves real metadata to a real database — but there's still no file/object storage (Phases 6 &amp; 7), so uploaded files themselves aren't saved, and there's no login gate yet (Phase 5).
+      ⚠ You're really logged in and publishing really saves to the database — but there's still no file/object storage (Phases 6 &amp; 7), so uploaded files themselves aren't saved yet.
     </div>
 
     <div class="dashboard-header">

@@ -1,4 +1,4 @@
-// ChaosLab — Express backend (Phase 3 + 4)
+// ChaosLab — Express backend (Phase 3 + 4 + 5)
 //
 // This replaces the old zero-dependency static server. It still serves
 // the public/ website exactly as before (same /ChaosLab base path, same
@@ -6,14 +6,35 @@
 // the admin dashboard calls over the network with fetch() — instead of
 // the dashboard's JavaScript just faking messages locally.
 //
-// /api/presentations now reads from a real SQLite database (db/database.js)
-// instead of an in-memory array, and publishing actually inserts a row.
-// No real authentication yet (Phase 5) and no real file storage yet
-// (Phases 6/7), so those parts still honestly reply "not implemented".
+// /api/presentations reads/writes a real SQLite database (db/database.js).
+// /api/auth/* is now real too (auth.js) — login checks a hashed password
+// and hands back a session cookie; publishing requires that session.
+// No real file storage yet (Phases 6/7), so publish still only saves
+// metadata, not actual files.
+
+// Load .env (ADMIN_USERNAME/ADMIN_PASSWORD) before anything that reads
+// process.env at require-time, like db/database.js's seed step.
+try {
+  process.loadEnvFile(".env");
+} catch (err) {
+  if (err.code !== "ENOENT") throw err;
+  // no .env file — db/database.js falls back to a default admin/admin
+}
 
 const express = require("express");
 const path = require("path");
-const { listPresentations, createPresentation } = require("./db/database");
+const { listPresentations, createPresentation, getUserByUsername } = require("./db/database");
+const {
+  verifyPassword,
+  createSession,
+  getSession,
+  destroySession,
+  parseCookies,
+  setSessionCookie,
+  clearSessionCookie,
+  requireAuth,
+  SESSION_COOKIE,
+} = require("./auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +42,10 @@ const PUBLIC_DIR = path.join(__dirname, "public");
 const BASE_PATH = "/ChaosLab";
 
 app.use(express.json());
+app.use((req, res, next) => {
+  req.cookies = parseCookies(req);
+  next();
+});
 
 // Send requests through the same /ChaosLab prefix GitHub Pages will use
 // in production (see README), so links behave identically in dev and live.
@@ -49,16 +74,45 @@ api.get("/presentations", (req, res) => {
 });
 
 api.post("/auth/login", (req, res) => {
-  res.status(501).json({
-    implemented: false,
-    message: "Authentication is not implemented yet (Phase 5). No login was performed.",
-  });
+  const { username, password } = req.body || {};
+  if (!username || !password) {
+    res.status(400).json({ implemented: true, message: "Username and password are required." });
+    return;
+  }
+
+  const user = getUserByUsername(username);
+  if (!user || !verifyPassword(password, user.password_hash)) {
+    res.status(401).json({ implemented: true, message: "Invalid username or password." });
+    return;
+  }
+
+  const token = createSession(user);
+  setSessionCookie(res, token);
+  res.json({ implemented: true, message: `Welcome back, ${user.username}.`, user: { username: user.username } });
+});
+
+api.post("/auth/logout", (req, res) => {
+  destroySession(req.cookies[SESSION_COOKIE]);
+  clearSessionCookie(res);
+  res.json({ implemented: true, message: "Logged out." });
+});
+
+// Lets the frontend ask "is anyone logged in right now?" — used by the
+// admin dashboard to decide whether to redirect to the login page.
+api.get("/auth/me", (req, res) => {
+  const session = getSession(req.cookies[SESSION_COOKIE]);
+  if (!session) {
+    res.status(401).json({ loggedIn: false });
+    return;
+  }
+  res.json({ loggedIn: true, username: session.username });
 });
 
 // This genuinely writes a row to chaoslab.db — it's just honest that no
 // actual file bytes are stored anywhere yet (that's Phases 6/7), so the
 // new row has no page behind it and is marked "draft", not "published".
-api.post("/presentations/publish", (req, res) => {
+// requireAuth means you now have to actually be logged in to reach this.
+api.post("/presentations/publish", requireAuth, (req, res) => {
   const { title, version, date, authors, summary } = req.body || {};
 
   if (!title || !version) {

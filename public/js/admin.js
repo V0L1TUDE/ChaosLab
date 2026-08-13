@@ -1,12 +1,15 @@
-// ChaosLab — admin UI behavior (Phase 3 + 4: talks to the real API + database)
+// ChaosLab — admin UI behavior (Phase 3 + 4 + 5: real API, database, and login)
 //
 // Every action below calls a real /api/* endpoint with fetch() and shows
-// the server's real response. Login still honestly replies "not
-// implemented yet" (no auth system exists — Phase 5). Publishing now
-// really writes a row to the SQLite database, but honestly says so when
-// no actual file was stored (file/object storage is Phases 6/7).
+// the server's real response. Login is now real — correct credentials get
+// you a session cookie, and the dashboard checks /api/auth/me on load and
+// redirects to the login page if you're not actually logged in. Publishing
+// really writes a row to the SQLite database, but honestly says so when no
+// actual file was stored (file/object storage is Phases 6/7).
 
 const API_BASE = "/api";
+const LOGIN_URL = "/ChaosLab/admin/login/";
+const DASHBOARD_URL = "/ChaosLab/admin/dashboard/";
 
 const STATUS_BADGE = {
   published: { class: "badge-published", label: "Published" },
@@ -35,8 +38,36 @@ document.addEventListener("DOMContentLoaded", () => {
         });
         const data = await res.json();
         msg.textContent = `[${res.status}] ${data.message}`;
+
+        if (res.ok) {
+          window.location.href = DASHBOARD_URL;
+        }
       } catch (err) {
         msg.textContent = "Could not reach the backend — is server.js running?";
+      }
+    });
+  }
+
+  // ---- dashboard: require a real session ----
+  const whoami = document.getElementById("whoami");
+  const logoutBtn = document.getElementById("logout-btn");
+  if (whoami || logoutBtn) {
+    fetch(`${API_BASE}/auth/me`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
+      .then(({ username }) => {
+        if (whoami) whoami.textContent = `Logged in as ${username}`;
+      })
+      .catch(() => {
+        window.location.href = LOGIN_URL;
+      });
+  }
+
+  if (logoutBtn) {
+    logoutBtn.addEventListener("click", async () => {
+      try {
+        await fetch(`${API_BASE}/auth/logout`, { method: "POST" });
+      } finally {
+        window.location.href = LOGIN_URL;
       }
     });
   }
