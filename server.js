@@ -1,4 +1,4 @@
-// ChaosLab — Express backend (Phase 3 + 4 + 5 + 6 + 7 + 8)
+// ChaosLab — Express backend (Phase 3 through 9)
 //
 // This replaces the old zero-dependency static server. It still serves
 // the public/ website exactly as before (same /ChaosLab base path, same
@@ -59,9 +59,47 @@ const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
 const BASE_PATH = "/ChaosLab";
 
-app.use(express.json());
+// In production Nginx terminates HTTPS and forwards to this local process.
+if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
+
+app.use(express.json({ limit: "100kb" }));
 app.use((req, res, next) => {
   req.cookies = parseCookies(req);
+  next();
+});
+
+// Baseline browser security. The CSP allows the small amount of inline CSS
+// already used by the student-facing pages, but blocks third-party scripts,
+// plugin content, framing, and unexpected form destinations.
+app.use((req, res, next) => {
+  res.setHeader("Content-Security-Policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "no-referrer");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  next();
+});
+
+// The website is same-origin by design. Cross-origin browser requests are
+// denied unless the deployment owner explicitly names one allowed origin.
+app.use((req, res, next) => {
+  const origin = req.get("Origin");
+  if (!origin) return next();
+  const sameOrigin = origin === `${req.protocol}://${req.get("host")}`;
+  const explicitlyAllowed = origin === process.env.ALLOWED_ORIGIN;
+  if (!sameOrigin && !explicitlyAllowed) {
+    res.status(403).json({ message: "Cross-origin requests are not allowed." });
+    return;
+  }
+  res.setHeader("Access-Control-Allow-Origin", origin);
+  res.setHeader("Vary", "Origin");
+  res.setHeader("Access-Control-Allow-Credentials", "true");
+  if (req.method === "OPTIONS") {
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
+    res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+    res.sendStatus(204);
+    return;
+  }
   next();
 });
 
@@ -109,6 +147,30 @@ const upload = multer({
     cb(null, true);
   },
 });
+
+function cleanText(value, name, maxLength, { required = false } = {}) {
+  if (value === undefined || value === null || value === "") {
+    if (required) return { error: `${name} is required.` };
+    return { value: null };
+  }
+  if (typeof value !== "string") return { error: `${name} must be text.` };
+  const cleaned = value.trim();
+  if (required && !cleaned) return { error: `${name} is required.` };
+  if (cleaned.length > maxLength) return { error: `${name} must be ${maxLength} characters or fewer.` };
+  return { value: cleaned || null };
+}
+
+function validatePresentationInput(input, { titleRequired = true } = {}) {
+  const title = cleanText(input.title, "Title", 120, { required: titleRequired });
+  const version = cleanText(input.version, "Version", 40, { required: true });
+  const authors = cleanText(input.authors, "Authors", 200);
+  const summary = cleanText(input.summary, "Change summary", 2000);
+  const date = cleanText(input.date, "Date", 10);
+  const error = [title, version, authors, summary, date].find((field) => field.error);
+  if (error) return { error: error.error };
+  if (date.value && !/^\d{4}-\d{2}-\d{2}$/.test(date.value)) return { error: "Date must use YYYY-MM-DD format." };
+  return { value: { title: title.value, version: version.value, date: date.value, authors: authors.value, summary: summary.value } };
+}
 
 // ---- API ----
 const api = express.Router();
@@ -158,9 +220,10 @@ async function downloadFile(req, res, file) {
     return;
   }
   const ext = path.extname(file.original_name).toLowerCase();
+  const downloadName = path.basename(file.original_name).replace(/[\r\n"]/g, "_");
 
   res.setHeader("Content-Type", MIME_TYPES[ext] || "application/octet-stream");
-  res.setHeader("Content-Disposition", `attachment; filename="${file.original_name}"`);
+  res.setHeader("Content-Disposition", `attachment; filename="${downloadName}"`);
   try {
     await storage.streamFile(req.params.id, file.stored_name, res);
   } catch (err) {
@@ -188,7 +251,7 @@ api.get("/presentations/:id/files/:fileId/download", async (req, res) => {
 
 api.post("/auth/login", (req, res) => {
   const { username, password } = req.body || {};
-  if (!username || !password) {
+  if (typeof username !== "string" || typeof password !== "string" || !username || !password || username.length > 100 || password.length > 200) {
     res.status(400).json({ implemented: true, message: "Username and password are required." });
     return;
   }
@@ -237,12 +300,12 @@ async function saveFilesAndPublish(presentation, files) {
 }
 
 api.post("/presentations/publish", requireAuth, upload.array("files", 10), async (req, res) => {
-  const { title, version, date, authors, summary } = req.body || {};
-
-  if (!title || !version) {
-    res.status(400).json({ implemented: true, message: "Title and version are required." });
+  const validation = validatePresentationInput(req.body || {});
+  if (validation.error) {
+    res.status(400).json({ implemented: true, message: validation.error });
     return;
   }
+  const { title, version, date, authors, summary } = validation.value;
 
   let created;
   try {
@@ -279,11 +342,12 @@ api.post("/presentations/:id/versions", requireAuth, upload.array("files", 10), 
     return;
   }
 
-  const { version, date, authors, summary } = req.body || {};
-  if (!version) {
-    res.status(400).json({ implemented: true, message: "A new version label is required." });
+  const validation = validatePresentationInput(req.body || {}, { titleRequired: false });
+  if (validation.error) {
+    res.status(400).json({ implemented: true, message: validation.error });
     return;
   }
+  const { version, date, authors, summary } = validation.value;
 
   const files = req.files || [];
   if (!files.length) {
@@ -364,7 +428,7 @@ app.use((req, res) => {
   res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html"));
 });
 
-app.listen(PORT, () => {
+const httpServer = app.listen(PORT, () => {
   console.log("");
   console.log("  ChaosLab backend running (Express)");
   console.log(`  Website:  http://localhost:${PORT}${BASE_PATH}/`);
@@ -376,3 +440,12 @@ app.listen(PORT, () => {
   );
   console.log("");
 });
+
+function shutdown(signal) {
+  console.log(`Received ${signal}; shutting down gracefully.`);
+  httpServer.close(() => process.exit(0));
+  setTimeout(() => process.exit(1), 10_000).unref();
+}
+
+process.once("SIGTERM", () => shutdown("SIGTERM"));
+process.once("SIGINT", () => shutdown("SIGINT"));

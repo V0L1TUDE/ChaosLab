@@ -99,6 +99,9 @@ if (count === 0) {
 // deleted and reseeded from scratch.
 const { userCount } = db.prepare("SELECT COUNT(*) AS userCount FROM users").get();
 if (userCount === 0) {
+  if (process.env.NODE_ENV === "production" && (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD)) {
+    throw new Error("ADMIN_USERNAME and ADMIN_PASSWORD must be set before creating a production database.");
+  }
   const username = process.env.ADMIN_USERNAME || "admin";
   const password = process.env.ADMIN_PASSWORD || "admin";
   if (!process.env.ADMIN_USERNAME || !process.env.ADMIN_PASSWORD) {

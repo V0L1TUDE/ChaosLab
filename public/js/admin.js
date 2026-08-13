@@ -172,42 +172,63 @@ document.addEventListener("DOMContentLoaded", () => {
         presentations.forEach((presentation) => {
           const badge = STATUS_BADGE[presentation.status] || STATUS_BADGE.not_published;
           const row = document.createElement("tr");
-          row.innerHTML = `
-            <td>${presentation.title}</td>
-            <td>${presentation.version}</td>
-            <td>${presentation.date || "-"}</td>
-            <td><span class="badge ${badge.class}">${badge.label}</span></td>
-            <td class="row-actions">
-              ${presentation.url ? `<a href="${presentation.url}">View</a>` : '<a href="#" class="disabled">View</a>'}
-              <a href="#" data-new-version="${presentation.id}">New version</a>
-              <a href="#" data-delete="${presentation.id}" style="color:var(--danger);">Delete</a>
-            </td>`;
+          function cell(value) {
+            const element = document.createElement("td");
+            element.textContent = value;
+            return element;
+          }
+          row.append(cell(presentation.title), cell(presentation.version), cell(presentation.date || "-"));
+
+          const statusCell = document.createElement("td");
+          const badgeElement = document.createElement("span");
+          badgeElement.className = `badge ${badge.class}`;
+          badgeElement.textContent = badge.label;
+          statusCell.appendChild(badgeElement);
+
+          const actions = document.createElement("td");
+          actions.className = "row-actions";
+          function action(label, handler, className) {
+            const link = document.createElement("a");
+            link.href = "#";
+            link.textContent = label;
+            if (className) link.className = className;
+            if (handler) link.addEventListener("click", handler);
+            return link;
+          }
+          if (presentation.url) {
+            const view = document.createElement("a");
+            view.href = presentation.url;
+            view.textContent = "View";
+            actions.appendChild(view);
+          } else {
+            actions.appendChild(action("View", null, "disabled"));
+          }
+          actions.append(
+            action("New version", (event) => {
+              event.preventDefault();
+              startNewVersion(presentation);
+            }),
+            action("Delete", async (event) => {
+              event.preventDefault();
+              if (!window.confirm(`Delete "${presentation.title} ${presentation.version}"? This permanently removes it and any uploaded file.`)) return;
+              if (historyMsg) {
+                historyMsg.textContent = `Deleting "${presentation.title} ${presentation.version}"...`;
+                historyMsg.classList.add("show");
+              }
+              try {
+                const res = await fetch(`${API_BASE}/presentations/${presentation.id}`, { method: "DELETE" });
+                const data = await res.json();
+                if (historyMsg) historyMsg.textContent = `[${res.status}] ${data.message}`;
+                if (res.ok) loadVersionHistory();
+              } catch {
+                if (historyMsg) historyMsg.textContent = "Could not reach the backend - is server.js running?";
+              }
+            })
+          );
+          actions.lastChild.style.color = "var(--danger)";
+          row.append(statusCell, actions);
           historyBody.appendChild(row);
         });
-
-        historyBody.querySelectorAll("[data-new-version]").forEach((link) => link.addEventListener("click", (event) => {
-          event.preventDefault();
-          const source = currentPresentations.find((item) => item.id === Number(link.dataset.newVersion));
-          if (source) startNewVersion(source);
-        }));
-
-        historyBody.querySelectorAll("[data-delete]").forEach((link) => link.addEventListener("click", async (event) => {
-          event.preventDefault();
-          const presentation = currentPresentations.find((item) => item.id === Number(link.dataset.delete));
-          if (!presentation || !window.confirm(`Delete "${presentation.title} ${presentation.version}"? This permanently removes it and any uploaded file.`)) return;
-          if (historyMsg) {
-            historyMsg.textContent = `Deleting "${presentation.title} ${presentation.version}"...`;
-            historyMsg.classList.add("show");
-          }
-          try {
-            const res = await fetch(`${API_BASE}/presentations/${presentation.id}`, { method: "DELETE" });
-            const data = await res.json();
-            if (historyMsg) historyMsg.textContent = `[${res.status}] ${data.message}`;
-            if (res.ok) loadVersionHistory();
-          } catch {
-            if (historyMsg) historyMsg.textContent = "Could not reach the backend - is server.js running?";
-          }
-        }));
       })
       .catch(() => {
         historyBody.innerHTML = '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not load version history.</td></tr>';

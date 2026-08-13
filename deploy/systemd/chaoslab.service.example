@@ -1,0 +1,21 @@
+# Copy to /etc/systemd/system/chaoslab.service and correct the paths.
+[Unit]
+Description=ChaosLab Express website
+After=network.target
+
+[Service]
+Type=simple
+User=chaoslab
+Group=chaoslab
+WorkingDirectory=/srv/chaoslab
+EnvironmentFile=/srv/chaoslab/.env
+ExecStart=/usr/bin/node /srv/chaoslab/server.js
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/srv/chaoslab
+
+[Install]
+WantedBy=multi-user.target
