@@ -39,6 +39,7 @@ falls back to `admin` / `admin` with a warning printed to the console.
 | `POST /api/presentations/publish` | **Requires login.** Accepts real files (multipart/form-data, via multer) and writes them to `uploads/`. With a file → row becomes `published`. Without one → stays `draft` (metadata only) |
 | `GET /api/presentations/:id/files` | Lists the files attached to a presentation |
 | `GET /api/presentations/:id/download` | Streams the first attached file back, with its real filename and content type |
+| `DELETE /api/presentations/:id` | **Requires login.** Permanently deletes the database row, its file records, and the actual files on disk |
 
 ## Project structure
 

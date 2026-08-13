@@ -147,6 +147,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ---- version history (real data, from chaoslab.db via the API) ----
   const historyBody = document.getElementById("version-history-body");
 
+  const historyMsg = document.getElementById("history-msg");
+
   function loadVersionHistory() {
     if (!historyBody) return;
     fetch(`${API_BASE}/presentations`)
@@ -164,9 +166,38 @@ document.addEventListener("DOMContentLoaded", () => {
             <td class="row-actions">
               ${p.url ? `<a href="${p.url}">View</a>` : `<a href="#" class="disabled">View</a>`}
               <a href="#" class="disabled">Replace</a>
+              <a href="#" data-delete="${p.id}" style="color:var(--danger);">Delete</a>
             </td>
           `;
           historyBody.appendChild(row);
+        });
+
+        historyBody.querySelectorAll("[data-delete]").forEach((link) => {
+          link.addEventListener("click", async (e) => {
+            e.preventDefault();
+            const id = link.dataset.delete;
+            const row = link.closest("tr");
+            const title = row.children[0].textContent;
+            const version = row.children[1].textContent;
+
+            if (!window.confirm(`Delete "${title} ${version}"? This permanently removes it and any uploaded file.`)) {
+              return;
+            }
+
+            if (historyMsg) {
+              historyMsg.textContent = `Deleting "${title} ${version}"…`;
+              historyMsg.classList.add("show");
+            }
+
+            try {
+              const res = await fetch(`${API_BASE}/presentations/${id}`, { method: "DELETE" });
+              const data = await res.json();
+              if (historyMsg) historyMsg.textContent = `[${res.status}] ${data.message}`;
+              if (res.ok) loadVersionHistory();
+            } catch (err) {
+              if (historyMsg) historyMsg.textContent = "Could not reach the backend — is server.js running?";
+            }
+          });
         });
       })
       .catch(() => {

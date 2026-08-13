@@ -35,6 +35,8 @@ const {
   addFile,
   getFilesForPresentation,
   markPresentationPublished,
+  getPresentationById,
+  deletePresentation,
 } = require("./db/database");
 const {
   verifyPassword,
@@ -214,6 +216,27 @@ api.post("/presentations/publish", requireAuth, upload.array("files", 10), (req,
       ? `Published with ${files.length} file(s) actually saved to disk.`
       : "Metadata saved to the database. No file was attached, so this stays a draft — attach a file to publish it for real.",
     presentation: created,
+  });
+});
+
+// Requires login. Deletes the database row, its files-table entries, and
+// the actual files on disk under uploads/<id>/ — a real, permanent delete,
+// not a soft "hide it" flag.
+api.delete("/presentations/:id", requireAuth, (req, res) => {
+  const presentation = getPresentationById(req.params.id);
+  if (!presentation) {
+    res.status(404).json({ implemented: true, message: "That presentation doesn't exist." });
+    return;
+  }
+
+  deletePresentation(req.params.id);
+
+  const presentationDir = path.join(UPLOADS_DIR, String(req.params.id));
+  fs.rmSync(presentationDir, { recursive: true, force: true });
+
+  res.json({
+    implemented: true,
+    message: `Deleted "${presentation.title} ${presentation.version}" and any attached files.`,
   });
 });
 

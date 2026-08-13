@@ -115,6 +115,13 @@ function getPresentationById(presentationId) {
   return db.prepare("SELECT * FROM presentations WHERE id = ?").get(presentationId);
 }
 
+// Deletes the database rows only — server.js is responsible for deleting
+// the actual files on disk (this module doesn't touch the filesystem).
+function deletePresentation(presentationId) {
+  db.prepare("DELETE FROM files WHERE presentation_id = ?").run(presentationId);
+  db.prepare("DELETE FROM presentations WHERE id = ?").run(presentationId);
+}
+
 function getUserByUsername(username) {
   return db.prepare("SELECT * FROM users WHERE username = ?").get(username);
 }
@@ -127,4 +134,5 @@ module.exports = {
   getFilesForPresentation,
   markPresentationPublished,
   getPresentationById,
+  deletePresentation,
 };
