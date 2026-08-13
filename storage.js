@@ -14,11 +14,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const UPLOADS_DIR = path.join(__dirname, "uploads");
+// The override keeps test uploads isolated from real student uploads.
+const UPLOADS_DIR = process.env.CHAOSLAB_UPLOADS_DIR || path.join(__dirname, "uploads");
 
 const AWS_REGION = process.env.AWS_REGION;
 const AWS_S3_BUCKET = process.env.AWS_S3_BUCKET;
-const useS3 = Boolean(AWS_REGION && AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+const useS3 = !process.env.CHAOSLAB_FORCE_LOCAL_STORAGE && Boolean(
+  AWS_REGION && AWS_S3_BUCKET && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
+);
 
 let s3Client = null;
 let S3_COMMANDS = null;

@@ -1,4 +1,4 @@
-// ChaosLab — Express backend (Phase 3 + 4 + 5 + 6 + 7)
+// ChaosLab — Express backend (Phase 3 + 4 + 5 + 6 + 7 + 8)
 //
 // This replaces the old zero-dependency static server. It still serves
 // the public/ website exactly as before (same /ChaosLab base path, same
@@ -32,10 +32,12 @@ const crypto = require("crypto");
 const storage = require("./storage");
 const {
   listPresentations,
+  listPublishedPresentations,
   createPresentation,
   getUserByUsername,
   addFile,
   getFilesForPresentation,
+  getFileForPresentation,
   markPresentationPublished,
   getPresentationById,
   deletePresentation,
@@ -115,12 +117,33 @@ api.get("/health", (req, res) => {
   res.json({ status: "ok", backend: "express", time: new Date().toISOString() });
 });
 
-// Real endpoint, backed by a real SQLite database now.
+// Public archive: only published versions are visible without logging in.
 api.get("/presentations", (req, res) => {
+  res.json({ presentations: listPublishedPresentations() });
+});
+
+// The dashboard needs to see drafts too, so it deliberately uses a separate,
+// protected endpoint rather than exposing draft metadata to every visitor.
+api.get("/admin/presentations", requireAuth, (req, res) => {
   res.json({ presentations: listPresentations() });
 });
 
+// A permanent public metadata page calls this endpoint. Drafts stay private.
+api.get("/presentations/:id", (req, res) => {
+  const presentation = getPresentationById(req.params.id);
+  if (!presentation || presentation.status !== "published") {
+    res.status(404).json({ message: "Published presentation not found." });
+    return;
+  }
+  res.json({ presentation, files: getFilesForPresentation(req.params.id) });
+});
+
 api.get("/presentations/:id/files", (req, res) => {
+  const presentation = getPresentationById(req.params.id);
+  if (!presentation || presentation.status !== "published") {
+    res.status(404).json({ message: "Published presentation not found." });
+    return;
+  }
   const files = getFilesForPresentation(req.params.id);
   res.json({ files });
 });
@@ -129,13 +152,11 @@ api.get("/presentations/:id/files", (req, res) => {
 // dashboard's "View" link and the deployed site's file downloads use.
 // Works identically whether storage.js is actually reading from S3 or
 // local disk; this route doesn't know or care which.
-api.get("/presentations/:id/download", async (req, res) => {
-  const files = getFilesForPresentation(req.params.id);
-  if (!files.length) {
+async function downloadFile(req, res, file) {
+  if (!file) {
     res.status(404).json({ message: "No file has been uploaded for this presentation." });
     return;
   }
-  const file = files[0];
   const ext = path.extname(file.original_name).toLowerCase();
 
   res.setHeader("Content-Type", MIME_TYPES[ext] || "application/octet-stream");
@@ -145,6 +166,24 @@ api.get("/presentations/:id/download", async (req, res) => {
   } catch (err) {
     if (!res.headersSent) res.status(404).json({ message: "File is missing from storage." });
   }
+}
+
+api.get("/presentations/:id/download", async (req, res) => {
+  const presentation = getPresentationById(req.params.id);
+  if (!presentation || presentation.status !== "published") {
+    res.status(404).json({ message: "Published presentation not found." });
+    return;
+  }
+  await downloadFile(req, res, getFilesForPresentation(req.params.id)[0]);
+});
+
+api.get("/presentations/:id/files/:fileId/download", async (req, res) => {
+  const presentation = getPresentationById(req.params.id);
+  if (!presentation || presentation.status !== "published") {
+    res.status(404).json({ message: "Published presentation not found." });
+    return;
+  }
+  await downloadFile(req, res, getFileForPresentation(req.params.id, req.params.fileId));
 });
 
 api.post("/auth/login", (req, res) => {
@@ -187,6 +226,16 @@ api.get("/auth/me", (req, res) => {
 // "published" (with a working download link) when at least one file came
 // with the request — no file means it stays "draft", same honesty rule
 // as before.
+async function saveFilesAndPublish(presentation, files) {
+  for (const file of files) {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const storedName = crypto.randomBytes(16).toString("hex") + ext;
+    await storage.saveFile(presentation.id, storedName, file.buffer);
+    addFile(presentation.id, { storedName, originalName: file.originalname, size: file.size });
+  }
+  return markPresentationPublished(presentation.id, `/ChaosLab/presentation/?id=${presentation.id}`);
+}
+
 api.post("/presentations/publish", requireAuth, upload.array("files", 10), async (req, res) => {
   const { title, version, date, authors, summary } = req.body || {};
 
@@ -195,18 +244,20 @@ api.post("/presentations/publish", requireAuth, upload.array("files", 10), async
     return;
   }
 
-  let created = createPresentation({ title, version, date, authors, summary });
+  let created;
+  try {
+    created = createPresentation({ title, version, date, authors, summary });
+  } catch (err) {
+    if (err.code === "DUPLICATE_VERSION") {
+      res.status(409).json({ implemented: true, message: err.message });
+      return;
+    }
+    throw err;
+  }
 
   const files = req.files || [];
   if (files.length) {
-    for (const file of files) {
-      const ext = path.extname(file.originalname).toLowerCase();
-      const storedName = crypto.randomBytes(16).toString("hex") + ext;
-      await storage.saveFile(created.id, storedName, file.buffer);
-      addFile(created.id, { storedName, originalName: file.originalname, size: file.size });
-    }
-
-    created = markPresentationPublished(created.id, `/api/presentations/${created.id}/download`);
+    created = await saveFilesAndPublish(created, files);
   }
 
   res.status(201).json({
@@ -214,6 +265,54 @@ api.post("/presentations/publish", requireAuth, upload.array("files", 10), async
     message: files.length
       ? `Published with ${files.length} file(s) actually saved to ${storage.useS3 ? "AWS S3" : "disk"}.`
       : "Metadata saved to the database. No file was attached, so this stays a draft — attach a file to publish it for real.",
+    presentation: created,
+  });
+});
+
+// Phase 8: this creates a fresh, immutable version in the SAME family as
+// the source record. It never updates the source record or its storage key,
+// which is why a professor can still open v1 after v2 is published.
+api.post("/presentations/:id/versions", requireAuth, upload.array("files", 10), async (req, res) => {
+  const source = getPresentationById(req.params.id);
+  if (!source) {
+    res.status(404).json({ implemented: true, message: "The source presentation does not exist." });
+    return;
+  }
+
+  const { version, date, authors, summary } = req.body || {};
+  if (!version) {
+    res.status(400).json({ implemented: true, message: "A new version label is required." });
+    return;
+  }
+
+  const files = req.files || [];
+  if (!files.length) {
+    res.status(400).json({ implemented: true, message: "Attach at least one file before publishing a new version." });
+    return;
+  }
+
+  let created;
+  try {
+    created = createPresentation({
+      title: source.title,
+      version,
+      date,
+      authors: authors || source.authors,
+      summary,
+      familyId: source.family_id,
+    });
+  } catch (err) {
+    if (err.code === "DUPLICATE_VERSION") {
+      res.status(409).json({ implemented: true, message: err.message });
+      return;
+    }
+    throw err;
+  }
+
+  created = await saveFilesAndPublish(created, files);
+  res.status(201).json({
+    implemented: true,
+    message: `Published ${created.title} ${created.version} as a new version. The source version remains unchanged.`,
     presentation: created,
   });
 });

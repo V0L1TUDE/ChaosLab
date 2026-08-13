@@ -3,17 +3,14 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Admin Dashboard — ChaosLab</title>
+<title>Admin Dashboard - ChaosLab</title>
 <link rel="stylesheet" href="/ChaosLab/css/style.css" />
 </head>
 <body>
-
 <nav class="navbar">
   <div class="container">
     <a href="/ChaosLab/" class="brand"><span class="bracket">[</span>ChaosLab<span class="bracket">]</span><span class="cursor"></span></a>
-    <div class="nav-links">
-      <a href="/ChaosLab/">Public Site ↗</a>
-    </div>
+    <div class="nav-links"><a href="/ChaosLab/">Public Site</a></div>
     <div class="nav-right">
       <span id="whoami" class="mono" style="font-size:12px; color:var(--text-faint);"></span>
       <button id="logout-btn" class="btn btn-ghost btn-sm">Log out</button>
@@ -29,18 +26,17 @@
 <div class="admin-shell">
   <aside class="admin-sidebar">
     <nav>
-      <a href="/ChaosLab/admin/dashboard/" class="active">▤ Dashboard</a>
-      <a href="/ChaosLab/presentations/">▦ Presentations</a>
-      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">◎ Team (soon)</a>
-      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">⚙ Settings (soon)</a>
+      <a href="/ChaosLab/admin/dashboard/" class="active">Dashboard</a>
+      <a href="/ChaosLab/presentations/">Presentations</a>
+      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">Team (soon)</a>
+      <a href="#" class="is-disabled" style="opacity:.45; pointer-events:none;">Settings (soon)</a>
     </nav>
   </aside>
 
   <main class="admin-main">
     <div class="mock-banner">
-      ⚠ Uploads are real now — files you attach are genuinely saved to disk on the server. What's still missing: cloud/object storage (Phase 7, e.g. S3) instead of local disk, and version replacement (Phase 8).
+      Publishing is version-safe: "New version" creates a separate, permanent record and never overwrites the source version or its files.
     </div>
-
     <div class="dashboard-header">
       <div>
         <h1>Admin Dashboard</h1>
@@ -50,39 +46,24 @@
 
     <div class="panel">
       <h2>Upload Presentation</h2>
+      <p id="version-mode" class="mono" style="color:var(--accent); font-size:12px; margin-bottom:16px;" hidden></p>
       <form id="publish-form">
         <div class="dropzone" id="dropzone">
-          <div class="dz-icon">⇧</div>
-          <div>Drag &amp; drop files or a folder, or click to browse</div>
-          <div style="margin-top:6px; color:var(--text-faint);">PDF, PPT/PPTX, DOC/DOCX, ZIP, or images — up to 25MB each, 10 files max</div>
+          <div class="dz-icon">Upload</div>
+          <div>Drag and drop files or a folder, or click to browse</div>
+          <div style="margin-top:6px; color:var(--text-faint);">PDF, PPT/PPTX, DOC/DOCX, ZIP, or images - up to 25MB each, 10 files max</div>
         </div>
         <input type="file" id="file-input" multiple style="display:none;" />
         <div class="file-list" id="file-list"></div>
-
         <div class="form-grid" style="margin-top:26px;">
-          <div class="field">
-            <label for="p-title">Title</label>
-            <input type="text" id="p-title" placeholder="e.g. Planning Presentation v2" />
-          </div>
-          <div class="field">
-            <label for="p-version">Version</label>
-            <input type="text" id="p-version" placeholder="e.g. v2" />
-          </div>
-          <div class="field">
-            <label for="p-date">Date</label>
-            <input type="date" id="p-date" />
-          </div>
-          <div class="field">
-            <label for="p-authors">Authors</label>
-            <input type="text" id="p-authors" placeholder="e.g. ChaosLab Team" />
-          </div>
-          <div class="field full">
-            <label for="p-summary">Change Summary</label>
-            <textarea id="p-summary" rows="3" placeholder="What changed since the last version?"></textarea>
-          </div>
+          <div class="field"><label for="p-title">Title</label><input type="text" id="p-title" placeholder="e.g. Planning Presentation" /></div>
+          <div class="field"><label for="p-version">Version</label><input type="text" id="p-version" placeholder="e.g. v2" /></div>
+          <div class="field"><label for="p-date">Date</label><input type="date" id="p-date" /></div>
+          <div class="field"><label for="p-authors">Authors</label><input type="text" id="p-authors" placeholder="e.g. ChaosLab Team" /></div>
+          <div class="field full"><label for="p-summary">Change Summary</label><textarea id="p-summary" rows="3" placeholder="What changed since the last version?"></textarea></div>
         </div>
-
         <button type="submit" class="btn btn-primary" style="margin-top:8px;">Publish</button>
+        <button type="button" id="cancel-version-btn" class="btn btn-ghost" style="margin-top:8px;" hidden>Cancel New Version</button>
         <div id="publish-msg" class="form-msg mono"></div>
       </form>
     </div>
@@ -90,23 +71,18 @@
     <div class="panel">
       <h2>Version History</h2>
       <p style="color:var(--text-faint); font-size:12.5px; font-family:var(--mono); margin-bottom:16px; margin-top:-10px;">
-        Live from <code>GET /api/presentations</code> — backed by a real SQLite database. "Draft" rows have metadata but no file attached; "Published" rows have a real file on disk — click View to download it.
+        Live from the protected admin API. "New version" copies only safe metadata into the form; publishing it stores new files and leaves every earlier version unchanged.
       </p>
       <div class="table-wrap">
         <table class="version-table">
-          <thead>
-            <tr><th>Title</th><th>Version</th><th>Date</th><th>Status</th><th>Actions</th></tr>
-          </thead>
-          <tbody id="version-history-body">
-            <tr><td colspan="5" class="mono" style="color:var(--text-faint);">Loading from /api/presentations…</td></tr>
-          </tbody>
+          <thead><tr><th>Title</th><th>Version</th><th>Date</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="version-history-body"><tr><td colspan="5" class="mono" style="color:var(--text-faint);">Loading version history...</td></tr></tbody>
         </table>
       </div>
       <div id="history-msg" class="form-msg mono"></div>
     </div>
   </main>
 </div>
-
 <script src="/ChaosLab/js/main.js"></script>
 <script src="/ChaosLab/js/admin.js"></script>
 </body>

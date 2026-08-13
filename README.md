@@ -107,6 +107,26 @@ Live at: `https://<your-github-username>.github.io/ChaosLab/`
 
 ## Status
 
+### Phase 8 update: publishing and version preservation (complete)
+
+The Phase 8 version workflow now creates a **new immutable record** instead
+of replacing an older presentation. Each version has its own presentation ID,
+storage location, files, publication timestamp, and permanent public page.
+The protected endpoint is:
+
+| API endpoint | What it does |
+|---|---|
+| `POST /api/presentations/:id/versions` | Creates and publishes a new version in the same presentation family. Requires login and at least one attached file. It returns `409` if that version label already exists in the family. |
+
+The public archive calls `GET /api/presentations` and lists **only published**
+versions. The dashboard calls the protected `GET /api/admin/presentations`
+endpoint so it can also manage drafts. New uploaded versions use the generic
+permanent page at `/ChaosLab/presentation/?id=<version-id>`; the original
+Planning Presentation v1 web deck keeps its existing permanent URL.
+
+The earlier Phase 8 placeholder in the historical checklist below is
+superseded by this section.
+
 - ✅ Public website (Phase 1) — done, deployed to GitHub Pages
 - ✅ Planning Presentation v1 content (Phase 2) — done
 - ✅ Node.js/Express backend (Phase 3) — done, runs locally (`node server.js`)

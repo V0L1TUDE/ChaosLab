@@ -1,4 +1,4 @@
-// ChaosLab — SQLite database (Phase 4 + 5 + 6)
+// ChaosLab — SQLite database (Phase 4 + 5 + 6 + 8)
 //
 // Uses node:sqlite, which ships built into Node.js itself — no npm
 // package to install, no native compilation to worry about. It's the
@@ -11,9 +11,12 @@
 
 const { DatabaseSync } = require("node:sqlite");
 const path = require("path");
+const crypto = require("crypto");
 const { hashPassword } = require("../auth");
 
-const DB_PATH = path.join(__dirname, "..", "chaoslab.db");
+// The override is used only by automated/local tests, so tests never touch
+// the student's real chaoslab.db.
+const DB_PATH = process.env.CHAOSLAB_DB_PATH || path.join(__dirname, "..", "chaoslab.db");
 const db = new DatabaseSync(DB_PATH);
 
 db.exec(`
@@ -28,6 +31,28 @@ db.exec(`
     url      TEXT
   )
 `);
+
+// Phase 8 migration. Existing student-project databases already have the
+// presentations table, so add the new columns one at a time rather than
+// asking anyone to delete their database and lose their previous versions.
+function addColumnIfMissing(table, column, definition) {
+  const columns = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!columns.some((existing) => existing.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+
+addColumnIfMissing("presentations", "family_id", "TEXT");
+addColumnIfMissing("presentations", "created_at", "TEXT");
+addColumnIfMissing("presentations", "published_at", "TEXT");
+
+// Legacy rows become a family based on their title. New rows receive a UUID.
+// This preserves the existing Planning Presentation v1/v2 relationship while
+// making every newly created family unambiguous, even if titles are reused.
+db.prepare("UPDATE presentations SET family_id = lower(trim(title)) WHERE family_id IS NULL OR family_id = ''").run();
+db.prepare("UPDATE presentations SET created_at = datetime('now') WHERE created_at IS NULL").run();
+db.prepare("UPDATE presentations SET published_at = datetime('now') WHERE status = 'published' AND published_at IS NULL").run();
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS presentation_family_version_unique ON presentations(family_id, version)");
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
@@ -53,10 +78,19 @@ db.exec(`
 const { count } = db.prepare("SELECT COUNT(*) AS count FROM presentations").get();
 if (count === 0) {
   const seed = db.prepare(
-    "INSERT INTO presentations (title, version, date, authors, status, url) VALUES (?, ?, ?, ?, ?, ?)"
+    "INSERT INTO presentations (family_id, title, version, date, authors, status, url, created_at, published_at) VALUES (?, ?, ?, ?, ?, ?, ?, datetime('now'), ?)"
   );
-  seed.run("Planning Presentation", "v1", "2026-08-10", "ChaosLab Team", "published", "/ChaosLab/presentations/planning-v1/");
-  seed.run("Planning Presentation", "v2", null, "ChaosLab Team", "not_published", null);
+  seed.run(
+    "planning-presentation",
+    "Planning Presentation",
+    "v1",
+    "2026-08-10",
+    "ChaosLab Team",
+    "published",
+    "/ChaosLab/presentations/planning-v1/",
+    new Date().toISOString()
+  );
+  seed.run("planning-presentation", "Planning Presentation", "v2", null, "ChaosLab Team", "not_published", null, null);
 }
 
 // Seed exactly one admin user, read from .env (see .env.example). Only
@@ -76,19 +110,38 @@ if (userCount === 0) {
 }
 
 function listPresentations() {
-  return db.prepare("SELECT * FROM presentations ORDER BY id").all();
+  return db.prepare("SELECT * FROM presentations ORDER BY title COLLATE NOCASE, id").all();
+}
+
+function listPublishedPresentations() {
+  return db
+    .prepare("SELECT * FROM presentations WHERE status = 'published' ORDER BY title COLLATE NOCASE, id")
+    .all();
 }
 
 // Saves real metadata to a real database row. Starts as 'draft' — becomes
 // 'published' only once a real file is actually attached (see
 // markPresentationPublished below), which happens right after this in
 // server.js if the request included any files.
-function createPresentation({ title, version, date, authors, summary }) {
+function createPresentation({ title, version, date, authors, summary, familyId }) {
+  const normalizedTitle = title.trim();
+  const normalizedVersion = version.trim();
+  const resolvedFamilyId = familyId || crypto.randomUUID();
+  const existing = db
+    .prepare("SELECT id FROM presentations WHERE family_id = ? AND version = ?")
+    .get(resolvedFamilyId, normalizedVersion);
+
+  if (existing) {
+    const error = new Error("That version already exists in this presentation family.");
+    error.code = "DUPLICATE_VERSION";
+    throw error;
+  }
+
   const result = db
     .prepare(
-      "INSERT INTO presentations (title, version, date, authors, summary, status, url) VALUES (?, ?, ?, ?, ?, 'draft', NULL)"
+      "INSERT INTO presentations (family_id, title, version, date, authors, summary, status, url, created_at) VALUES (?, ?, ?, ?, ?, ?, 'draft', NULL, datetime('now'))"
     )
-    .run(title, version, date || null, authors || null, summary || null);
+    .run(resolvedFamilyId, normalizedTitle, normalizedVersion, date || null, authors || null, summary || null);
   return db.prepare("SELECT * FROM presentations WHERE id = ?").get(result.lastInsertRowid);
 }
 
@@ -104,10 +157,17 @@ function getFilesForPresentation(presentationId) {
   return db.prepare("SELECT * FROM files WHERE presentation_id = ? ORDER BY id").all(presentationId);
 }
 
+function getFileForPresentation(presentationId, fileId) {
+  return db.prepare("SELECT * FROM files WHERE presentation_id = ? AND id = ?").get(presentationId, fileId);
+}
+
 // Real file(s) now exist on disk for this presentation, so it's genuinely
 // publishable — flips status and points url at the download endpoint.
 function markPresentationPublished(presentationId, url) {
-  db.prepare("UPDATE presentations SET status = 'published', url = ? WHERE id = ?").run(url, presentationId);
+  db.prepare("UPDATE presentations SET status = 'published', url = ?, published_at = datetime('now') WHERE id = ?").run(
+    url,
+    presentationId
+  );
   return db.prepare("SELECT * FROM presentations WHERE id = ?").get(presentationId);
 }
 
@@ -128,10 +188,12 @@ function getUserByUsername(username) {
 
 module.exports = {
   listPresentations,
+  listPublishedPresentations,
   createPresentation,
   getUserByUsername,
   addFile,
   getFilesForPresentation,
+  getFileForPresentation,
   markPresentationPublished,
   getPresentationById,
   deletePresentation,

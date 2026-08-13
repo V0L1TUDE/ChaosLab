@@ -1,13 +1,5 @@
-// ChaosLab — admin UI behavior (Phase 3-6: real API, database, login, uploads)
-//
-// Every action below calls a real /api/* endpoint with fetch() and shows
-// the server's real response. Login is real (session cookie), and the
-// dashboard checks /api/auth/me on load, redirecting to login if you're
-// not actually logged in. Publishing sends real files as multipart/form-data
-// (FormData, not JSON) — the server genuinely writes them to disk. A
-// presentation only becomes "published" if a file was actually attached;
-// without one it stays a metadata-only "draft". Object storage (S3/R2
-// instead of local disk) is still Phase 7.
+// ChaosLab admin UI (Phase 3-8): authentication, uploads, and immutable versions.
+// A new version always becomes a new database record and storage folder.
 
 const API_BASE = "/api";
 const LOGIN_URL = "/ChaosLab/admin/login/";
@@ -20,37 +12,31 @@ const STATUS_BADGE = {
 };
 
 document.addEventListener("DOMContentLoaded", () => {
-  // ---- login form ----
   const loginForm = document.getElementById("login-form");
   if (loginForm) {
     const msg = document.getElementById("login-msg");
-    loginForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const username = document.getElementById("username").value;
-      const password = document.getElementById("password").value;
-
-      msg.textContent = "Contacting /api/auth/login…";
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      msg.textContent = "Contacting /api/auth/login...";
       msg.classList.add("show");
-
       try {
         const res = await fetch(`${API_BASE}/auth/login`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({
+            username: document.getElementById("username").value,
+            password: document.getElementById("password").value,
+          }),
         });
         const data = await res.json();
         msg.textContent = `[${res.status}] ${data.message}`;
-
-        if (res.ok) {
-          window.location.href = DASHBOARD_URL;
-        }
-      } catch (err) {
-        msg.textContent = "Could not reach the backend — is server.js running?";
+        if (res.ok) window.location.href = DASHBOARD_URL;
+      } catch {
+        msg.textContent = "Could not reach the backend - is server.js running?";
       }
     });
   }
 
-  // ---- dashboard: require a real session ----
   const whoami = document.getElementById("whoami");
   const logoutBtn = document.getElementById("logout-btn");
   if (whoami || logoutBtn) {
@@ -73,20 +59,21 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   if (logoutBtn) logoutBtn.addEventListener("click", logout);
-
   const mobileLogoutBtn = document.getElementById("mobile-logout-btn");
-  if (mobileLogoutBtn) {
-    mobileLogoutBtn.addEventListener("click", (e) => {
-      e.preventDefault();
-      logout();
-    });
-  }
+  if (mobileLogoutBtn) mobileLogoutBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    logout();
+  });
 
-  // ---- dropzone ----
   const dropzone = document.getElementById("dropzone");
   const fileInput = document.getElementById("file-input");
   const fileList = document.getElementById("file-list");
-  let selected = []; // real File objects, sent as multipart/form-data on submit
+  const publishForm = document.getElementById("publish-form");
+  const versionMode = document.getElementById("version-mode");
+  const cancelVersionBtn = document.getElementById("cancel-version-btn");
+  let selected = [];
+  let versionSource = null;
+  let currentPresentations = [];
 
   function formatSize(bytes) {
     if (bytes < 1024) return `${bytes} B`;
@@ -97,156 +84,169 @@ document.addEventListener("DOMContentLoaded", () => {
   function renderFiles() {
     if (!fileList) return;
     fileList.innerHTML = "";
-    selected.forEach((file, i) => {
+    selected.forEach((file, index) => {
       const row = document.createElement("div");
       row.className = "file-row";
-      row.innerHTML = `
-        <span>${file.name} <span class="l-dim mono" style="color:var(--text-faint); font-size:11px;">(${formatSize(
-        file.size
-      )})</span></span>
-        <button type="button" data-remove="${i}" class="mono" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;">Remove</button>
-      `;
-      fileList.appendChild(row);
-    });
-    fileList.querySelectorAll("[data-remove]").forEach((btn) => {
-      btn.addEventListener("click", () => {
-        selected.splice(Number(btn.dataset.remove), 1);
+      const label = document.createElement("span");
+      label.textContent = `${file.name} (${formatSize(file.size)})`;
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "mono";
+      remove.textContent = "Remove";
+      remove.style.cssText = "background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;";
+      remove.addEventListener("click", () => {
+        selected.splice(index, 1);
         renderFiles();
       });
+      row.append(label, remove);
+      fileList.appendChild(row);
     });
   }
 
-  function addFiles(fileListObj) {
-    Array.from(fileListObj).forEach((f) => selected.push(f));
+  function addFiles(files) {
+    Array.from(files).forEach((file) => selected.push(file));
     renderFiles();
   }
 
   if (dropzone && fileInput) {
     dropzone.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (e) => addFiles(e.target.files));
-
-    ["dragenter", "dragover"].forEach((evt) =>
-      dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        dropzone.classList.add("drag-over");
-      })
-    );
-    ["dragleave", "drop"].forEach((evt) =>
-      dropzone.addEventListener(evt, (e) => {
-        e.preventDefault();
-        dropzone.classList.remove("drag-over");
-      })
-    );
-    dropzone.addEventListener("drop", (e) => {
-      if (e.dataTransfer && e.dataTransfer.files.length) {
-        addFiles(e.dataTransfer.files);
-      }
+    fileInput.addEventListener("change", (event) => addFiles(event.target.files));
+    ["dragenter", "dragover"].forEach((type) => dropzone.addEventListener(type, (event) => {
+      event.preventDefault();
+      dropzone.classList.add("drag-over");
+    }));
+    ["dragleave", "drop"].forEach((type) => dropzone.addEventListener(type, (event) => {
+      event.preventDefault();
+      dropzone.classList.remove("drag-over");
+    }));
+    dropzone.addEventListener("drop", (event) => {
+      if (event.dataTransfer?.files.length) addFiles(event.dataTransfer.files);
     });
   }
 
-  // ---- version history (real data, from chaoslab.db via the API) ----
-  const historyBody = document.getElementById("version-history-body");
+  function resetVersionMode() {
+    versionSource = null;
+    if (versionMode) versionMode.hidden = true;
+    if (cancelVersionBtn) cancelVersionBtn.hidden = true;
+    const title = document.getElementById("p-title");
+    if (title) title.readOnly = false;
+  }
 
+  function startNewVersion(source) {
+    versionSource = source;
+    document.getElementById("p-title").value = source.title;
+    document.getElementById("p-title").readOnly = true;
+    document.getElementById("p-version").value = "";
+    document.getElementById("p-date").value = new Date().toISOString().slice(0, 10);
+    document.getElementById("p-authors").value = source.authors || "";
+    document.getElementById("p-summary").value = "";
+    selected = [];
+    if (fileInput) fileInput.value = "";
+    renderFiles();
+    if (versionMode) {
+      versionMode.hidden = false;
+      versionMode.textContent = `Creating a new version of ${source.title} ${source.version}. The original remains unchanged.`;
+    }
+    if (cancelVersionBtn) cancelVersionBtn.hidden = false;
+    document.getElementById("p-version").focus();
+  }
+
+  if (cancelVersionBtn) cancelVersionBtn.addEventListener("click", () => {
+    publishForm.reset();
+    selected = [];
+    if (fileInput) fileInput.value = "";
+    renderFiles();
+    resetVersionMode();
+  });
+
+  const historyBody = document.getElementById("version-history-body");
   const historyMsg = document.getElementById("history-msg");
 
   function loadVersionHistory() {
     if (!historyBody) return;
-    fetch(`${API_BASE}/presentations`)
-      .then((res) => res.json())
+    fetch(`${API_BASE}/admin/presentations`)
+      .then((res) => (res.ok ? res.json() : Promise.reject()))
       .then(({ presentations }) => {
+        currentPresentations = presentations;
         historyBody.innerHTML = "";
-        presentations.forEach((p) => {
-          const badge = STATUS_BADGE[p.status] || STATUS_BADGE.not_published;
+        presentations.forEach((presentation) => {
+          const badge = STATUS_BADGE[presentation.status] || STATUS_BADGE.not_published;
           const row = document.createElement("tr");
           row.innerHTML = `
-            <td>${p.title}</td>
-            <td>${p.version}</td>
-            <td>${p.date || "—"}</td>
+            <td>${presentation.title}</td>
+            <td>${presentation.version}</td>
+            <td>${presentation.date || "-"}</td>
             <td><span class="badge ${badge.class}">${badge.label}</span></td>
             <td class="row-actions">
-              ${p.url ? `<a href="${p.url}">View</a>` : `<a href="#" class="disabled">View</a>`}
-              <a href="#" class="disabled">Replace</a>
-              <a href="#" data-delete="${p.id}" style="color:var(--danger);">Delete</a>
-            </td>
-          `;
+              ${presentation.url ? `<a href="${presentation.url}">View</a>` : '<a href="#" class="disabled">View</a>'}
+              <a href="#" data-new-version="${presentation.id}">New version</a>
+              <a href="#" data-delete="${presentation.id}" style="color:var(--danger);">Delete</a>
+            </td>`;
           historyBody.appendChild(row);
         });
 
-        historyBody.querySelectorAll("[data-delete]").forEach((link) => {
-          link.addEventListener("click", async (e) => {
-            e.preventDefault();
-            const id = link.dataset.delete;
-            const row = link.closest("tr");
-            const title = row.children[0].textContent;
-            const version = row.children[1].textContent;
+        historyBody.querySelectorAll("[data-new-version]").forEach((link) => link.addEventListener("click", (event) => {
+          event.preventDefault();
+          const source = currentPresentations.find((item) => item.id === Number(link.dataset.newVersion));
+          if (source) startNewVersion(source);
+        }));
 
-            if (!window.confirm(`Delete "${title} ${version}"? This permanently removes it and any uploaded file.`)) {
-              return;
-            }
-
-            if (historyMsg) {
-              historyMsg.textContent = `Deleting "${title} ${version}"…`;
-              historyMsg.classList.add("show");
-            }
-
-            try {
-              const res = await fetch(`${API_BASE}/presentations/${id}`, { method: "DELETE" });
-              const data = await res.json();
-              if (historyMsg) historyMsg.textContent = `[${res.status}] ${data.message}`;
-              if (res.ok) loadVersionHistory();
-            } catch (err) {
-              if (historyMsg) historyMsg.textContent = "Could not reach the backend — is server.js running?";
-            }
-          });
-        });
+        historyBody.querySelectorAll("[data-delete]").forEach((link) => link.addEventListener("click", async (event) => {
+          event.preventDefault();
+          const presentation = currentPresentations.find((item) => item.id === Number(link.dataset.delete));
+          if (!presentation || !window.confirm(`Delete "${presentation.title} ${presentation.version}"? This permanently removes it and any uploaded file.`)) return;
+          if (historyMsg) {
+            historyMsg.textContent = `Deleting "${presentation.title} ${presentation.version}"...`;
+            historyMsg.classList.add("show");
+          }
+          try {
+            const res = await fetch(`${API_BASE}/presentations/${presentation.id}`, { method: "DELETE" });
+            const data = await res.json();
+            if (historyMsg) historyMsg.textContent = `[${res.status}] ${data.message}`;
+            if (res.ok) loadVersionHistory();
+          } catch {
+            if (historyMsg) historyMsg.textContent = "Could not reach the backend - is server.js running?";
+          }
+        }));
       })
       .catch(() => {
-        historyBody.innerHTML =
-          '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not reach /api/presentations — is server.js running?</td></tr>';
+        historyBody.innerHTML = '<tr><td colspan="5" class="mono" style="color:var(--danger);">Could not load version history.</td></tr>';
       });
   }
 
   loadVersionHistory();
 
-  // ---- publish form ----
-  const publishForm = document.getElementById("publish-form");
-  if (publishForm) {
+  if (publishForm) publishForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
     const msg = document.getElementById("publish-msg");
-    publishForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
+    const formData = new FormData();
+    formData.append("title", document.getElementById("p-title").value);
+    formData.append("version", document.getElementById("p-version").value);
+    formData.append("date", document.getElementById("p-date").value);
+    formData.append("authors", document.getElementById("p-authors").value);
+    formData.append("summary", document.getElementById("p-summary").value);
+    selected.forEach((file) => formData.append("files", file));
 
-      // FormData, not JSON — this is what lets real file bytes ride along
-      // with the text fields as multipart/form-data. Don't set a
-      // Content-Type header manually: the browser generates one with the
-      // correct multipart boundary itself, and overriding it breaks parsing.
-      const formData = new FormData();
-      formData.append("title", document.getElementById("p-title").value);
-      formData.append("version", document.getElementById("p-version").value);
-      formData.append("date", document.getElementById("p-date").value);
-      formData.append("authors", document.getElementById("p-authors").value);
-      formData.append("summary", document.getElementById("p-summary").value);
-      selected.forEach((file) => formData.append("files", file));
+    const endpoint = versionSource
+      ? `${API_BASE}/presentations/${versionSource.id}/versions`
+      : `${API_BASE}/presentations/publish`;
+    msg.textContent = versionSource ? "Publishing a new immutable version..." : "Uploading presentation...";
+    msg.classList.add("show");
 
-      msg.textContent = "Uploading to /api/presentations/publish…";
-      msg.classList.add("show");
-
-      try {
-        const res = await fetch(`${API_BASE}/presentations/publish`, {
-          method: "POST",
-          body: formData,
-        });
-        const data = await res.json();
-        msg.textContent = `[${res.status}] ${data.message}`;
-
-        if (res.ok) {
-          publishForm.reset();
-          selected = [];
-          renderFiles();
-          loadVersionHistory();
-        }
-      } catch (err) {
-        msg.textContent = "Could not reach the backend — is server.js running?";
+    try {
+      const res = await fetch(endpoint, { method: "POST", body: formData });
+      const data = await res.json();
+      msg.textContent = `[${res.status}] ${data.message}`;
+      if (res.ok) {
+        publishForm.reset();
+        selected = [];
+        if (fileInput) fileInput.value = "";
+        renderFiles();
+        resetVersionMode();
+        loadVersionHistory();
       }
-    });
-  }
+    } catch {
+      msg.textContent = "Could not reach the backend - is server.js running?";
+    }
+  });
 });
