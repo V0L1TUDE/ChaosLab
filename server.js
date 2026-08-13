@@ -1,4 +1,4 @@
-// ChaosLab — Express backend (Phase 3 + 4 + 5 + 6)
+// ChaosLab — Express backend (Phase 3 + 4 + 5 + 6 + 7)
 //
 // This replaces the old zero-dependency static server. It still serves
 // the public/ website exactly as before (same /ChaosLab base path, same
@@ -8,26 +8,28 @@
 //
 // /api/presentations reads/writes a real SQLite database (db/database.js).
 // /api/auth/* is real (auth.js) — login checks a hashed password and hands
-// back a session cookie; publishing requires that session. Publishing now
-// also accepts real files (multer) and stores them on local disk under
-// uploads/ — a presentation only becomes "published" once a real file is
-// actually attached; without one it stays "draft" (metadata only). Object
-// storage (S3/R2 instead of local disk) is still Phase 7.
+// back a session cookie; publishing requires that session. Uploaded files
+// go through storage.js, which genuinely uses AWS S3 if credentials are
+// configured in .env, or local disk under uploads/ if not — see that file
+// for details. Either way, a presentation only becomes "published" once a
+// real file is actually attached; without one it stays "draft".
 
-// Load .env (ADMIN_USERNAME/ADMIN_PASSWORD) before anything that reads
-// process.env at require-time, like db/database.js's seed step.
+// Load .env (ADMIN_USERNAME/ADMIN_PASSWORD, AWS_*) before anything that
+// reads process.env at require-time, like db/database.js's seed step and
+// storage.js's S3-vs-local-disk decision.
 try {
   process.loadEnvFile(".env");
 } catch (err) {
   if (err.code !== "ENOENT") throw err;
-  // no .env file — db/database.js falls back to a default admin/admin
+  // no .env file — db/database.js falls back to a default admin/admin,
+  // and storage.js falls back to local disk
 }
 
 const express = require("express");
 const multer = require("multer");
-const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const storage = require("./storage");
 const {
   listPresentations,
   createPresentation,
@@ -53,7 +55,6 @@ const {
 const app = express();
 const PORT = process.env.PORT || 3000;
 const PUBLIC_DIR = path.join(__dirname, "public");
-const UPLOADS_DIR = path.join(__dirname, "uploads");
 const BASE_PATH = "/ChaosLab";
 
 app.use(express.json());
@@ -126,23 +127,24 @@ api.get("/presentations/:id/files", (req, res) => {
 
 // Streams the first uploaded file back to the browser — this is what the
 // dashboard's "View" link and the deployed site's file downloads use.
-api.get("/presentations/:id/download", (req, res) => {
+// Works identically whether storage.js is actually reading from S3 or
+// local disk; this route doesn't know or care which.
+api.get("/presentations/:id/download", async (req, res) => {
   const files = getFilesForPresentation(req.params.id);
   if (!files.length) {
     res.status(404).json({ message: "No file has been uploaded for this presentation." });
     return;
   }
   const file = files[0];
-  const filePath = path.join(UPLOADS_DIR, String(req.params.id), file.stored_name);
   const ext = path.extname(file.original_name).toLowerCase();
 
   res.setHeader("Content-Type", MIME_TYPES[ext] || "application/octet-stream");
   res.setHeader("Content-Disposition", `attachment; filename="${file.original_name}"`);
-  res.sendFile(filePath, (err) => {
-    if (err && !res.headersSent) {
-      res.status(404).json({ message: "File is missing on disk." });
-    }
-  });
+  try {
+    await storage.streamFile(req.params.id, file.stored_name, res);
+  } catch (err) {
+    if (!res.headersSent) res.status(404).json({ message: "File is missing from storage." });
+  }
 });
 
 api.post("/auth/login", (req, res) => {
@@ -181,11 +183,11 @@ api.get("/auth/me", (req, res) => {
 });
 
 // Real database row AND, if files were attached, real files genuinely
-// written to disk under uploads/<presentationId>/. Only becomes
-// "published" (with a working download link) when at least one file
-// came with the request — no file means it stays "draft", same honesty
-// rule as before. Cloud storage (S3/R2 instead of local disk) is Phase 7.
-api.post("/presentations/publish", requireAuth, upload.array("files", 10), (req, res) => {
+// written to storage (S3 or local disk — see storage.js). Only becomes
+// "published" (with a working download link) when at least one file came
+// with the request — no file means it stays "draft", same honesty rule
+// as before.
+api.post("/presentations/publish", requireAuth, upload.array("files", 10), async (req, res) => {
   const { title, version, date, authors, summary } = req.body || {};
 
   if (!title || !version) {
@@ -197,15 +199,12 @@ api.post("/presentations/publish", requireAuth, upload.array("files", 10), (req,
 
   const files = req.files || [];
   if (files.length) {
-    const presentationDir = path.join(UPLOADS_DIR, String(created.id));
-    fs.mkdirSync(presentationDir, { recursive: true });
-
-    files.forEach((file) => {
+    for (const file of files) {
       const ext = path.extname(file.originalname).toLowerCase();
       const storedName = crypto.randomBytes(16).toString("hex") + ext;
-      fs.writeFileSync(path.join(presentationDir, storedName), file.buffer);
+      await storage.saveFile(created.id, storedName, file.buffer);
       addFile(created.id, { storedName, originalName: file.originalname, size: file.size });
-    });
+    }
 
     created = markPresentationPublished(created.id, `/api/presentations/${created.id}/download`);
   }
@@ -213,16 +212,16 @@ api.post("/presentations/publish", requireAuth, upload.array("files", 10), (req,
   res.status(201).json({
     implemented: true,
     message: files.length
-      ? `Published with ${files.length} file(s) actually saved to disk.`
+      ? `Published with ${files.length} file(s) actually saved to ${storage.useS3 ? "AWS S3" : "disk"}.`
       : "Metadata saved to the database. No file was attached, so this stays a draft — attach a file to publish it for real.",
     presentation: created,
   });
 });
 
 // Requires login. Deletes the database row, its files-table entries, and
-// the actual files on disk under uploads/<id>/ — a real, permanent delete,
-// not a soft "hide it" flag.
-api.delete("/presentations/:id", requireAuth, (req, res) => {
+// the actual files from storage (S3 or local disk) — a real, permanent
+// delete, not a soft "hide it" flag.
+api.delete("/presentations/:id", requireAuth, async (req, res) => {
   const presentation = getPresentationById(req.params.id);
   if (!presentation) {
     res.status(404).json({ implemented: true, message: "That presentation doesn't exist." });
@@ -230,9 +229,7 @@ api.delete("/presentations/:id", requireAuth, (req, res) => {
   }
 
   deletePresentation(req.params.id);
-
-  const presentationDir = path.join(UPLOADS_DIR, String(req.params.id));
-  fs.rmSync(presentationDir, { recursive: true, force: true });
+  await storage.deleteAllFilesForPresentation(req.params.id);
 
   res.json({
     implemented: true,
@@ -252,6 +249,17 @@ app.use((err, req, res, next) => {
   next(err);
 });
 
+// Anything else (S3 errors, bugs, etc.) — never leak a stack trace or file
+// paths to the client. Full detail still goes to the server's own console.
+app.use((err, req, res, next) => {
+  console.error(err);
+  if (res.headersSent) {
+    next(err);
+    return;
+  }
+  res.status(500).json({ implemented: true, message: "Something went wrong on the server. Check the server console for details." });
+});
+
 // Anything else (bad routes, typos) falls back to the same 404 page.
 app.use((req, res) => {
   res.status(404).sendFile(path.join(PUBLIC_DIR, "404.html"));
@@ -262,5 +270,10 @@ app.listen(PORT, () => {
   console.log("  ChaosLab backend running (Express)");
   console.log(`  Website:  http://localhost:${PORT}${BASE_PATH}/`);
   console.log(`  API:      http://localhost:${PORT}/api/health`);
+  console.log(
+    storage.useS3
+      ? `  Storage:  \x1b[36mAWS S3\x1b[0m (bucket: ${process.env.AWS_S3_BUCKET})`
+      : `  Storage:  local disk (uploads/) — set AWS_* in .env to switch to S3`
+  );
   console.log("");
 });
