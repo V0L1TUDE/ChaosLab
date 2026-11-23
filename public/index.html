@@ -282,22 +282,71 @@
   </div>
 </section>
 
+<!-- ============ ONLINE MVP ============ -->
+<section id="mvp">
+  <div class="container">
+    <div class="section-label">06 · Online MVP</div>
+    <div class="section-head">
+      <h2>A working MVP, built on the plan</h2>
+      <p>The planned engine now exists as a multi-user web platform. Here is what it does today — and what it deliberately does not.</p>
+    </div>
+    <div class="grid grid-3">
+      <div class="card reveal">
+        <div class="icon">▤</div>
+        <h3>Web platform</h3>
+        <p>Accounts, an application registry, experiment configuration, live monitoring, Oracle results and downloadable reports.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">§</div>
+        <h3>Verification Oracle</h3>
+        <p>Declarative invariants checked against collected evidence, giving PASS / FAIL / SKIPPED / NOT APPLICABLE per invariant. The same Oracle judges simulated and live runs.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⚡</div>
+        <h3>Real fault experiments</h3>
+        <p>Curated Chaos Mesh experiments (pod kills, network faults) against Online Boutique and further demo applications, with recovery tracking, probes and OpenTelemetry/Jaeger traces.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⇄</div>
+        <h3>Bring your own cluster</h3>
+        <p>A ChaosLab agent runs next to your cluster and connects outbound over HTTPS. It runs the job, returns raw evidence, and the server's Oracle makes the verdict — the agent's own verdict is never trusted.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">✓</div>
+        <h3>Safety controls</h3>
+        <p>One-time enrollment tokens, an explicit allow-list of namespaces, a per-cluster emergency stop that removes the running fault, and an append-only audit log.</p>
+      </div>
+      <div class="card reveal">
+        <div class="icon">⚑</div>
+        <h3>Sandboxed uploads</h3>
+        <p>Uploaded Kubernetes manifests are inspected before storage. Deploying them is fail-closed: refused until an isolated tenant runtime passes its preflight check.</p>
+      </div>
+    </div>
+    <p class="status-note" style="margin-top:34px;">
+      Simulated mode runs anywhere with no cluster. Live mode needs <code>kubectl</code> access to a cluster
+      with Chaos Mesh installed. Source:
+      <a href="https://github.com/V0L1TUDE/ChaosLab-Platform" style="color:var(--accent); text-decoration:underline;">github.com/V0L1TUDE/ChaosLab-Platform</a>.
+    </p>
+  </div>
+</section>
+
 <!-- ============ PROJECT STATUS ============ -->
 <section id="status" style="background:var(--bg-alt); border-top:1px solid var(--border); border-bottom:1px solid var(--border);">
   <div class="container">
-    <div class="section-label" style="justify-content:center; display:flex;">06 · Project Status</div>
+    <div class="section-label" style="justify-content:center; display:flex;">07 · Project Status</div>
     <div class="stepper reveal">
       <div class="step done"><span class="node"></span> Planning</div>
       <div class="step-line done"></div>
-      <div class="step active"><span class="node"></span> In Progress</div>
+      <div class="step active"><span class="node"></span> Online MVP</div>
       <div class="step-line"></div>
       <div class="step"><span class="node"></span> Evaluation</div>
     </div>
     <p class="status-note">
-      The recovery-correctness engine (Oracle Engine, Evidence Collector, Correlation
-      Engine, Verdict Generator) is <strong>under active development</strong> and not
-      yet implemented. This website currently reflects the approved project plan and
-      design — not a working analysis engine.
+      The recovery-correctness engine and its web platform are <strong>built and
+      working as an MVP</strong>. Work continues on broader experiment coverage,
+      hardening, and evaluating how well the Oracle catches incorrect recovery.
+      This website itself is a separate project site: it documents the plan and
+      publishes our presentations, and is not the analysis engine.
     </p>
   </div>
 </section>

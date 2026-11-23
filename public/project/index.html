@@ -176,6 +176,30 @@
     </div>
   </div>
 
+  <div class="content-block">
+    <h2><span class="num">09</span> Current Implementation (Online MVP)</h2>
+    <p>
+      The sections above describe the approved plan. The plan has since been built as a working
+      MVP, and this is how it maps onto what was proposed:
+    </p>
+    <table class="spec-table">
+      <thead><tr><th>Planned function</th><th>In the MVP</th></tr></thead>
+      <tbody>
+        <tr><td>Define Oracle</td><td>Declarative invariants (baseline healthy, fault injected, target impact, service recovery, recovery within timeout, application health/functional/log checks, and tracing checks).</td></tr>
+        <tr><td>Run Experiment</td><td>Curated Chaos Mesh experiments, run either in simulation or live. For a user's own cluster, a ChaosLab agent leases the job and runs it locally.</td></tr>
+        <tr><td>Collect Evidence</td><td>Recovery tracking, declarative application probes, and OpenTelemetry/Jaeger trace checks.</td></tr>
+        <tr><td>Evaluate Oracle</td><td>The server's Oracle evaluates raw evidence; a differing agent verdict is noted but never trusted.</td></tr>
+        <tr><td>Generate Verdict</td><td>Per-invariant PASS / FAIL / SKIPPED / NOT APPLICABLE plus an overall verdict, with HTML and downloadable reports.</td></tr>
+      </tbody>
+    </table>
+    <div class="callout">
+      <p><strong>Honest limits:</strong> Live runs need a cluster with Chaos Mesh. Deploying
+      user-uploaded applications is fail-closed until an isolated tenant runtime is verified,
+      and the experiment catalogue is curated rather than arbitrary. The MVP's source is at
+      <a href="https://github.com/V0L1TUDE/ChaosLab-Platform" style="color:var(--accent); text-decoration:underline;">github.com/V0L1TUDE/ChaosLab-Platform</a>.</p>
+    </div>
+  </div>
+
 </div>
 
 <footer>

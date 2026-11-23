@@ -163,6 +163,21 @@ sudo certbot --nginx -d chaoslab.yourdomain.com
 
 Certbot automatically edits the Nginx configuration and configures a daily renewal timer (`systemctl status certbot.timer`).
 
+> **Certificate expiry trap (learned the hard way).** If `nginx -t` fails on a fresh server because the
+> template references certificate files that don't exist yet, it's tempting to run
+> `certbot certonly --standalone` after stopping Nginx. **Don't leave it that way:** that records
+> `authenticator = standalone` in `/etc/letsencrypt/renewal/<domain>.conf`, and every automatic renewal
+> afterwards fails because Nginx owns port 80. Let's Encrypt certificates last 90 days, so the site then
+> breaks with an expired certificate. After the first issuance, switch renewal to the Nginx plugin:
+>
+> ```bash
+> sudo certbot certonly --nginx -d chaoslab.yourdomain.com --force-renewal
+> sudo systemctl reload nginx
+> sudo certbot renew --dry-run     # must end with "all simulated renewals succeeded"
+> ```
+>
+> If the site ever shows a certificate warning, check `sudo certbot certificates` first.
+
 ---
 
 ## 6. AWS S3 Storage Integration

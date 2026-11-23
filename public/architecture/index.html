@@ -140,6 +140,42 @@
         <tr><td>OpenTelemetry</td><td>Distributed tracing used to reconstruct the cross-service request path during recovery.</td></tr>
       </tbody>
     </table>
+
+    <div class="section-head" style="margin-top:70px;">
+      <div class="section-label">As Built</div>
+      <h2>The Online MVP architecture</h2>
+      <p>The design above was implemented as a web platform plus an agent that runs next to a cluster. The agent only ever connects outbound, and the server never trusts its verdict.</p>
+    </div>
+    <div class="terminal reveal">
+      <div class="terminal-bar"><span></span><span></span><span></span><span class="title">online-mvp-flow</span></div>
+      <div class="terminal-body">
+        <div class="l-accent">browser  ──▶  web app</div>
+        <div class="l-dim">            accounts · applications · jobs · Oracle · reports (SQLite)</div>
+        <div class="l-dim">                 ▲</div>
+        <div class="l-dim">                 │  HTTPS, outbound-only</div>
+        <div class="l-accent">agent  (next to your cluster)</div>
+        <div class="l-dim">            leases a job · re-checks local policy · runs the engine</div>
+        <div class="l-dim">                 │  kubectl</div>
+        <div class="l-ok">                 ▼</div>
+        <div class="l-ok">your cluster  ·  Chaos Mesh fault  ·  probes  ·  Jaeger traces</div>
+        <div class="l-dim">                 │  raw evidence returned</div>
+        <div class="l-accent">web app Oracle  ──▶  PASS / FAIL / SKIPPED / N-A per invariant</div>
+      </div>
+    </div>
+    <div class="grid grid-3" style="margin-top:28px;">
+      <div class="card reveal">
+        <h3>Verifier engine</h3>
+        <p>Injects the Chaos Mesh fault, tracks recovery, runs application probes and collects trace evidence.</p>
+      </div>
+      <div class="card reveal">
+        <h3>Oracle</h3>
+        <p>Evaluates declarative invariants over that evidence. The same Oracle serves simulated and live runs.</p>
+      </div>
+      <div class="card reveal">
+        <h3>Agent &amp; controls</h3>
+        <p>Enrollment tokens, namespace allow-list, one active job per cluster, emergency stop and an audit log.</p>
+      </div>
+    </div>
   </div>
 </section>
 
