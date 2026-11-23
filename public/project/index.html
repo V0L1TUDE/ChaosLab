@@ -177,13 +177,13 @@
   </div>
 
   <div class="content-block">
-    <h2><span class="num">09</span> Current Implementation (Online MVP)</h2>
+    <h2><span class="num">09</span> Current Implementation</h2>
     <p>
       The sections above describe the approved plan. The plan has since been built as a working
-      MVP, and this is how it maps onto what was proposed:
+      platform, and this is how it maps onto what was proposed:
     </p>
     <table class="spec-table">
-      <thead><tr><th>Planned function</th><th>In the MVP</th></tr></thead>
+      <thead><tr><th>Planned function</th><th>As built</th></tr></thead>
       <tbody>
         <tr><td>Define Oracle</td><td>Declarative invariants (baseline healthy, fault injected, target impact, service recovery, recovery within timeout, application health/functional/log checks, and tracing checks).</td></tr>
         <tr><td>Run Experiment</td><td>Curated Chaos Mesh experiments, run either in simulation or live. For a user's own cluster, a ChaosLab agent leases the job and runs it locally.</td></tr>
@@ -195,7 +195,7 @@
     <div class="callout">
       <p><strong>Honest limits:</strong> Live runs need a cluster with Chaos Mesh. Deploying
       user-uploaded applications is fail-closed until an isolated tenant runtime is verified,
-      and the experiment catalogue is curated rather than arbitrary. The MVP's source is at
+      and the experiment catalogue is curated rather than arbitrary. The source is at
       <a href="https://github.com/V0L1TUDE/ChaosLab-Platform" style="color:var(--accent); text-decoration:underline;">github.com/V0L1TUDE/ChaosLab-Platform</a>.</p>
     </div>
   </div>
